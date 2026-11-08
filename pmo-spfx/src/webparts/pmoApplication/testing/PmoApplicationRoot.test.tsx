@@ -1,3 +1,7 @@
+jest.mock("@microsoft/sp-http", () => ({
+  SPHttpClient: { configurations: { v1: {} } },
+}));
+
 import * as React from "react";
 import { screen } from "@testing-library/react";
 import { PmoApplicationRoot } from "../components/PmoApplicationRoot";

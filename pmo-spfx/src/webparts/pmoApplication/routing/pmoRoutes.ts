@@ -15,6 +15,11 @@ export const PMO_ROUTES = {
   reports: "reports",
   financialSummary: "financial-summary",
   settings: "settings",
+  settingsList: "settings-list",
+  employees: "employees",
+  employeeList: "employee-list",
+  employee: "employee",
+  myProfile: "my-profile",
 } as const;
 
 export type PmoRoute =
@@ -45,6 +50,14 @@ export interface IPmoNavigationItem {
 
 /** Initial route registrations. Future feature modules append items to this typed contract. */
 export const PMO_NAVIGATION: readonly IPmoNavigationItem[] = [
+  {
+    key: "my-profile",
+    group: "My work",
+    label: "My Profile",
+    route: PMO_ROUTES.myProfile,
+    iconName: "Contact",
+    requiredCapabilities: ["employees.view-own"],
+  },
   {
     key: "home",
     group: "Workspace",
@@ -95,8 +108,8 @@ export const PMO_NAVIGATION: readonly IPmoNavigationItem[] = [
   {
     key: "resources",
     group: "Operations",
-    label: "Resources",
-    route: PMO_ROUTES.resources,
+    label: "Employees",
+    route: PMO_ROUTES.employees,
     iconName: "People",
     requiredCapabilities: ["resources.view"],
   },

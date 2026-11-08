@@ -11,6 +11,8 @@ import { IReadonlyTheme } from "@microsoft/sp-component-base";
 import * as strings from "PmoApplicationWebPartStrings";
 import PmoApplication from "./components/PmoApplication";
 import type { IPmoApplicationProps } from "./components/IPmoApplicationProps";
+import { pmoEnvironment } from "./config/environment";
+import { SharePointClient } from "./services/sharepoint/SharePointClient";
 
 export interface IPmoApplicationWebPartProps {
   description: string;
@@ -20,13 +22,19 @@ export interface IPmoApplicationWebPartProps {
 export default class PmoApplicationWebPart extends BaseClientSideWebPart<IPmoApplicationWebPartProps> {
   private _isDarkTheme: boolean = false;
   private _root: Root | undefined;
+  private _sharePointClient: SharePointClient | undefined;
 
   public render(): void {
+    this._sharePointClient ??= new SharePointClient(
+      this.context.spHttpClient,
+      pmoEnvironment,
+    );
     const element: React.ReactElement<IPmoApplicationProps> =
       React.createElement(PmoApplication, {
         isDarkTheme: this._isDarkTheme,
         userDisplayName: this.context.pageContext.user.displayName,
         userEmail: this.context.pageContext.user.email,
+        sharePointClient: this._sharePointClient,
       });
 
     if (!this._root) {

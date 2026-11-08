@@ -10,6 +10,7 @@ const PmoApplication = ({
   isDarkTheme,
   userDisplayName,
   userEmail,
+  sharePointClient,
 }: IPmoApplicationProps): React.ReactElement => (
   <section
     className={styles.pmoApplication}
@@ -18,6 +19,7 @@ const PmoApplication = ({
     <PmoApplicationRoot
       userDisplayName={userDisplayName}
       userEmail={userEmail}
+      sharePointClient={sharePointClient}
     />
   </section>
 );
