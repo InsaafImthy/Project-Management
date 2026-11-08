@@ -26,6 +26,7 @@ export default class PmoApplicationWebPart extends BaseClientSideWebPart<IPmoApp
       React.createElement(PmoApplication, {
         isDarkTheme: this._isDarkTheme,
         userDisplayName: this.context.pageContext.user.displayName,
+        userEmail: this.context.pageContext.user.email,
       });
 
     if (!this._root) {

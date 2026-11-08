@@ -5,11 +5,17 @@ import { PMO_LISTS, pmoEnvironment } from "../config/environment";
 import { renderWithPmoTheme } from "./renderWithPmoTheme";
 
 describe("PmoApplicationRoot", () => {
-  it("renders the foundation state without a business dashboard", () => {
-    renderWithPmoTheme(<PmoApplicationRoot userDisplayName="Test User" />);
+  it("renders the shared application shell without a business dashboard", () => {
+    renderWithPmoTheme(
+      <PmoApplicationRoot
+        userDisplayName="Test User"
+        userEmail="test.user@example.com"
+      />,
+    );
 
+    expect(screen.getByRole("heading", { name: "PMO workspace" })).toBeTruthy();
     expect(
-      screen.getByRole("heading", { name: "PMO application foundation" }),
+      screen.getByRole("complementary", { name: "Application navigation" }),
     ).toBeTruthy();
     expect(screen.queryByRole("table")).toBeNull();
   });

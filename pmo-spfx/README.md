@@ -1,10 +1,10 @@
 # PMO SPFx
 
-Stage 01 foundation for the PMO SharePoint Framework application. It provides a SharePoint-only
-React web part, application root and feedback states, central environment configuration, design
-theme, direct SharePoint service boundary, typed models, and unit/component-test infrastructure.
-It intentionally contains no business dashboard, project form, task table, Teams host, Power
-Automate integration, provisioning logic, credentials, client IDs, or business mock data.
+Stage 03 shared presentation foundation for the PMO SharePoint Framework application. It provides
+the SharePoint-only React web part, centralized design tokens and primitives, reusable tables,
+forms, dashboards, layouts, a capability-aware application shell, and query-string routing. It
+intentionally contains no business-module pages, SharePoint queries in presentation components,
+Teams host, Power Automate integration, provisioning logic, credentials, or business mock data.
 
 ## Prerequisites
 
@@ -71,3 +71,21 @@ library are not managed by this repository.
   reorganizing the scaffold.
 - [ADR 0001](docs/adr/0001-sharepoint-direct-services.md) records why Teams and Power Automate
   are deferred and why the current app uses direct SharePoint services.
+
+## Shared components
+
+Stage 02 centralizes Fluent-backed visual decisions in `theme/pmoDesignTokens.ts` and exports the
+PMO primitives from `components/primitives/index.ts`. Components own repeated PMO behavior such as
+semantic action emphasis, accessible field/error wiring, number boundaries, debounced search,
+M365 person resolution boundaries, text-first statuses, locale-aware values, and feedback states.
+
+In a development build, append `?pmoGallery=true` to the SharePoint workbench/page URL to render
+the component gallery. The gate uses the SPFx `DEBUG` build constant, so the gallery cannot replace
+normal application content in a production build.
+
+Stage 03 exports feature-neutral composites from `components/composites/index.ts` and shell/layout
+components from `components/layout/index.ts`. `DataTable<T>` is deliberately query-free: features
+own server paging, sorting, filtering, selection state, and mutations. Feature modules register
+typed navigation entries and required capabilities through `routing/pmoRoutes.ts`; they do not edit
+sidebar markup. Application context is limited to current identity/capabilities, display preference,
+messages/dialogs, and route state.

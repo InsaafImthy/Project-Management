@@ -1,5 +1,5 @@
 import * as React from "react";
-import { MessageBar, MessageBarType } from "@fluentui/react";
+import { FatalErrorPage } from "../layout";
 
 interface IPmoErrorBoundaryProps {
   readonly children: React.ReactNode;
@@ -21,12 +21,7 @@ export class PmoErrorBoundary extends React.Component<
 
   public render(): React.ReactNode {
     if (this.state.hasError) {
-      return (
-        <MessageBar messageBarType={MessageBarType.error} role="alert">
-          The PMO application could not be displayed. Refresh the page and
-          contact support if the problem continues.
-        </MessageBar>
-      );
+      return <FatalErrorPage onRetry={() => window.location.reload()} />;
     }
 
     return this.props.children;
