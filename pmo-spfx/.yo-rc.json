@@ -1,0 +1,22 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "whichFolder": "subdir",
+    "solutionName": "pmo-spfx",
+    "environment": "spo",
+    "packageManager": "npm",
+    "skipFeatureDeployment": true,
+    "useGulp": false,
+    "componentType": "webpart",
+    "template": "react",
+    "componentName": "PmoApplication",
+    "componentDescription": "PMO application foundation",
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "24.21.0",
+    "sdksVersions": {},
+    "version": "1.24.1",
+    "libraryName": "pmo-spfx",
+    "libraryId": "8fc0f399-fd4c-4642-88c1-42aca0184b78",
+    "solutionShortDescription": "pmo-spfx description"
+  }
+}

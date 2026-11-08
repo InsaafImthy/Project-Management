@@ -1,0 +1,18 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "pmo-application-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/pmoApplication/PmoApplicationWebPart.js",
+          "manifest": "./src/webparts/pmoApplication/PmoApplicationWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "PmoApplicationWebPartStrings": "lib/webparts/pmoApplication/loc/{locale}.js"
+  }
+}

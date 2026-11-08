@@ -1,0 +1,39 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "pmo-spfx-client-side-solution",
+    "id": "8fc0f399-fd4c-4642-88c1-42aca0184b78",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.24.1"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "pmo-spfx description"
+      },
+      "longDescription": {
+        "default": "pmo-spfx description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "pmo-spfx Feature",
+        "description": "The feature that activates elements of the pmo-spfx solution.",
+        "id": "606e918c-31d7-4a30-a367-fafa11c52687",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/pmo-spfx.sppkg"
+  }
+}

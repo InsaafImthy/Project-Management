@@ -1,0 +1,7 @@
+.pmoApplication {
+  box-sizing: border-box;
+  color: "[theme:bodyText, default: #323130]";
+  color: var(--bodyText, #323130);
+  font-family: "Segoe UI", Arial, sans-serif;
+  padding: 24px;
+}
