@@ -1,7 +1,9 @@
 import { PMO_CONTAINERS, PMO_FIELDS } from "../config/sharePointSchema";
 import type { IPmoEmployee } from "../models/domain";
 import {
+  PMO_GROUPS,
   UserCapabilityService,
+  canOpenRoute,
   hasCapability,
 } from "../services/domain/UserCapabilityService";
 import type { ISharePointClient } from "../services/sharepoint/SharePointClient";
@@ -79,5 +81,46 @@ describe("UserCapabilityService", () => {
     expect(user.securityRoles.has("qa")).toBe(false);
     expect(hasCapability(user, "quality.manage")).toBe(false);
     expect(hasCapability(user, "work.act-own")).toBe(true);
+  });
+
+  it("grants the administrator override without group or employee membership", async () => {
+    const client = {
+      getJson: async (url: string): Promise<unknown> =>
+        url.indexOf("groups") >= 0
+          ? { value: [] }
+          : {
+              Id: 42,
+              Title: "Insaaf Imthiyas",
+              Email: "INsaaf.Imthiyas@AufaitTechnologies.com ",
+              LoginName:
+                "i:0#.f|membership|insaaf.imthiyas@aufaittechnologies.com",
+            },
+    } as unknown as ISharePointClient;
+    const getActiveByEmail = jest.fn(async () => employee);
+    const service = new UserCapabilityService(
+      client,
+      { getActiveByEmail },
+      { getActiveForEmployee: async () => ({ items: [] }) },
+    );
+
+    const user = await service.resolveCurrent();
+
+    expect(getActiveByEmail).not.toHaveBeenCalled();
+    expect(user.employee).toBeUndefined();
+    expect(user.email).toBe("insaaf.imthiyas@aufaittechnologies.com");
+    expect(user.securityRoles.size).toBe(Object.keys(PMO_GROUPS).length);
+    expect(user.eligibility).toEqual({
+      isProjectManager: true,
+      isQa: true,
+      isApprover: true,
+      isResourceManager: true,
+    });
+    expect(hasCapability(user, "configuration.manage")).toBe(true);
+    expect(hasCapability(user, "finance.manage")).toBe(true);
+    expect(hasCapability(user, "work.act-own")).toBe(true);
+    expect(hasCapability(user, "time.edit-own")).toBe(true);
+    expect(canOpenRoute(user, "settings")).toBe(true);
+    expect(canOpenRoute(user, "employee-rates")).toBe(true);
+    await expect(service.isUserInSecurityRole(42, "owner")).resolves.toBe(true);
   });
 });

@@ -42,6 +42,42 @@ export type PmoCapability =
   | "support.failed-actions"
   | "configuration.manage";
 
+/**
+ * Break-glass administrators whose application authorization must not depend on
+ * SharePoint group or PMO employee-list membership. Keep this list deliberately
+ * small: entries receive every application role and capability.
+ */
+const ADMINISTRATOR_OVERRIDE_EMAILS = new Set([
+  "insaaf.imthiyas@aufaittechnologies.com",
+]);
+
+const ALL_CAPABILITIES: readonly PmoCapability[] = [
+  "employees.view-own",
+  "employees.manage",
+  "work.view-own",
+  "work.act-own",
+  "time.view-own",
+  "time.edit-own",
+  "time.review",
+  "projects.view",
+  "projects.manage",
+  "quality.view",
+  "quality.manage",
+  "resources.view",
+  "resources.manage",
+  "approvals.view",
+  "approvals.decide",
+  "finance.view",
+  "finance.project-summary",
+  "finance.manage",
+  "portfolio.view",
+  "support.failed-actions",
+  "configuration.manage",
+];
+
+const isAdministratorOverride = (email: string): boolean =>
+  ADMINISTRATOR_OVERRIDE_EMAILS.has(email.trim().toLowerCase());
+
 export interface IPmoEligibility {
   readonly isProjectManager: boolean;
   readonly isQa: boolean;
@@ -201,6 +237,13 @@ export class UserCapabilityService {
     sharePointUserId: number,
     role: PmoSecurityRole,
   ): Promise<boolean> {
+    const current = await this.resolveCurrent();
+    if (
+      current.sharePointUserId === sharePointUserId &&
+      isAdministratorOverride(current.email)
+    ) {
+      return true;
+    }
     const group = encodeURIComponent(PMO_GROUPS[role].replace(/'/g, "''"));
     const response = await this.client.getJson<IUserMembershipWire>(
       `_api/web/sitegroups/getbyname('${group}')/users?$select=Id&$filter=Id eq ${sharePointUserId}`,
@@ -219,35 +262,46 @@ export class UserCapabilityService {
         "_api/web/currentuser/groups?$select=Title",
       ),
     ]);
-    const employee = current.Email
-      ? await this.employees.getActiveByEmail(current.Email)
-      : undefined;
+    const normalizedEmail = current.Email.trim().toLowerCase();
+    const hasAdministratorOverride = isAdministratorOverride(normalizedEmail);
+    const employee =
+      current.Email && !hasAdministratorOverride
+        ? await this.employees.getActiveByEmail(current.Email)
+        : undefined;
     const groupTitles = new Set(
       (groups.value ?? groups.d?.results ?? []).map((group) => group.Title),
     );
     const securityRoles = new Set<PmoSecurityRole>();
-    (Object.keys(PMO_GROUPS) as PmoSecurityRole[]).forEach((role) => {
-      if (groupTitles.has(PMO_GROUPS[role])) securityRoles.add(role);
+    const allRoles = Object.keys(PMO_GROUPS) as PmoSecurityRole[];
+    allRoles.forEach((role) => {
+      if (hasAdministratorOverride || groupTitles.has(PMO_GROUPS[role])) {
+        securityRoles.add(role);
+      }
     });
-    const eligibility: IPmoEligibility = {
-      isProjectManager: employee?.isProjectManager ?? false,
-      isQa: employee?.isQa ?? false,
-      isApprover: employee?.isApprover ?? false,
-      isResourceManager: employee?.isResourceManager ?? false,
-    };
+    const eligibility: IPmoEligibility = hasAdministratorOverride
+      ? {
+          isProjectManager: true,
+          isQa: true,
+          isApprover: true,
+          isResourceManager: true,
+        }
+      : {
+          isProjectManager: employee?.isProjectManager ?? false,
+          isQa: employee?.isQa ?? false,
+          isApprover: employee?.isApprover ?? false,
+          isResourceManager: employee?.isResourceManager ?? false,
+        };
     return {
       sharePointUserId: current.Id,
       displayName: current.Title,
-      email: current.Email.toLowerCase(),
+      email: normalizedEmail,
       loginName: current.LoginName,
       employee,
       eligibility,
       securityRoles,
-      capabilities: capabilitiesFor(
-        securityRoles,
-        eligibility,
-        employee !== undefined,
-      ),
+      capabilities: hasAdministratorOverride
+        ? new Set(ALL_CAPABILITIES)
+        : capabilitiesFor(securityRoles, eligibility, employee !== undefined),
     };
   }
 }
