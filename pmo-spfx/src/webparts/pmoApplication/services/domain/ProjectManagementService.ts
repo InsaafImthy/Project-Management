@@ -170,15 +170,18 @@ export class ProjectManagementService {
         [F.projectFinancials.Title]: `${projectCode} ${project.title}`,
         [F.projectFinancials.ProjectId]: project.id,
         [F.projectFinancials.ProjectCode]: projectCode,
-        [F.projectFinancials.ProjectValue]: draft.projectValue ?? 0,
+        [F.projectFinancials.ProjectValue]: draft.projectValue ?? null,
         [F.projectFinancials.CurrencyCode]: draft.currencyCode
           .trim()
           .toUpperCase(),
-        [F.projectFinancials.BaselineCostBudget]: draft.baselineCostBudget ?? 0,
-        [F.projectFinancials.ApprovedCostBudget]: draft.baselineCostBudget ?? 0,
+        [F.projectFinancials.BaselineCostBudget]:
+          draft.baselineCostBudget ?? null,
+        [F.projectFinancials.ApprovedCostBudget]:
+          draft.approvedCostBudget ?? draft.baselineCostBudget ?? null,
         [F.projectFinancials.ActualCost]: 0,
         [F.projectFinancials.ForecastCost]: 0,
-        [F.projectFinancials.CalculationStatus]: "Missing Value",
+        [F.projectFinancials.CalculationStatus]:
+          draft.projectValue === undefined ? "Missing Value" : "Complete",
       });
     }
     return project;
@@ -210,11 +213,11 @@ export class ProjectManagementService {
         await this.financials.update(
           finance.id,
           {
-            [F.projectFinancials.ProjectValue]: draft.projectValue ?? 0,
+            [F.projectFinancials.ProjectValue]: draft.projectValue ?? null,
             [F.projectFinancials.BaselineCostBudget]:
-              draft.baselineCostBudget ?? 0,
+              draft.baselineCostBudget ?? null,
             [F.projectFinancials.ApprovedCostBudget]:
-              draft.baselineCostBudget ?? 0,
+              draft.approvedCostBudget ?? draft.baselineCostBudget ?? null,
           },
           finance.etag,
         );

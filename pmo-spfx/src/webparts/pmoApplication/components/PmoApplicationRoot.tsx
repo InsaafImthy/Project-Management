@@ -26,6 +26,7 @@ import {
   WorkItemsRepository,
   ProjectCostsRepository,
   ProjectStatusReportsRepository,
+  EmployeeRatesRepository,
 } from "../services/repositories";
 import {
   ConfigurationManagementService,
@@ -46,6 +47,7 @@ import {
   RiskManagementService,
   ProjectStatusReportService,
   ClosureReadinessService,
+  FinancialManagementService,
 } from "../services/domain";
 import type { ISharePointClient } from "../services/sharepoint/SharePointClient";
 import { parseConfigNumber } from "../validation/configuration";
@@ -124,6 +126,13 @@ import {
   StatusReportListPage,
   STATUS_REPORT_ROUTES,
 } from "../features/statusReports";
+import {
+  FinanceDashboardPage,
+  EmployeeRatesPage,
+  ProjectCostsPage,
+  ProjectFinancialsPage,
+  FINANCE_ROUTES,
+} from "../features/finance";
 
 export interface IPmoApplicationRootProps {
   readonly userDisplayName: string;
@@ -174,6 +183,35 @@ const PmoApplicationContent = ({
 function PmoRouteContent(): React.ReactElement {
   const { route, back } = usePmoRoute();
   const user = React.useContext(PmoApplicationContext);
+  if (route.view === FINANCE_ROUTES.dashboard) {
+    return (user?.capabilities.indexOf("finance.view") ?? -1) >= 0 ? (
+      <FinanceDashboardPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === FINANCE_ROUTES.rates) {
+    return (user?.capabilities.indexOf("finance.view") ?? -1) >= 0 ? (
+      <EmployeeRatesPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === FINANCE_ROUTES.costs) {
+    return (user?.capabilities.indexOf("finance.view") ?? -1) >= 0 ? (
+      <ProjectCostsPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === FINANCE_ROUTES.projectFinancials) {
+    return (user?.capabilities.indexOf("finance.project-summary") ?? -1) >= 0 ||
+      (user?.capabilities.indexOf("finance.view") ?? -1) >= 0 ? (
+      <ProjectFinancialsPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
   if (route.view === QUALITY_ROUTES.dashboard) {
     return (user?.capabilities.indexOf("quality.view") ?? -1) >= 0 ? (
       <QualityDashboardPage />
@@ -456,6 +494,7 @@ const createFeatureServices = (
   const taskActionsRepository = new TaskActionsRepository(client);
   const learningRepository = new LearningAssignmentsRepository(client);
   const projectCostsRepository = new ProjectCostsRepository(client);
+  const employeeRatesRepository = new EmployeeRatesRepository(client);
   const statusReportsRepository = new ProjectStatusReportsRepository(client);
   const capabilities = new UserCapabilityService(
     client,
@@ -590,6 +629,26 @@ const createFeatureServices = (
         capabilities,
       ),
       closureReadiness,
+      finance: new FinancialManagementService(
+        employeeRatesRepository,
+        projectCostsRepository,
+        financialsRepository,
+        timeRepository,
+        projectsRepository,
+        capabilities,
+        async () => {
+          const configured = (await settings.cache.getActive()).find(
+            (setting) => setting.key === "PersonDayHours",
+          );
+          return parseConfigNumber(configured?.value ?? "") ?? 8;
+        },
+        async () => {
+          const configured = (await settings.cache.getActive()).find(
+            (setting) => setting.key === "ApprovedMarginThresholdPercent",
+          );
+          return parseConfigNumber(configured?.value ?? "") ?? 0;
+        },
+      ),
     },
   };
 };

@@ -341,6 +341,55 @@ export class EmployeeRatesRepository extends SharePointRepository<IPmoEmployeeRa
       top: 10,
     });
   }
+
+  public getForEmployee(
+    employeeId: number,
+    rateType?: IPmoEmployeeRate["rateType"],
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoEmployeeRate>> {
+    const type = rateType
+      ? ` and ${F.employeeRates.RateType} eq ${odataString(rateType)}`
+      : "";
+    return this.queryPage({
+      filter: `${F.employeeRates.EmployeeId} eq ${employeeId}${type}`,
+      orderBy: [`${F.employeeRates.EffectiveFrom} desc`],
+      top: 100,
+      continuation,
+    });
+  }
+
+  public getEffectiveForEmployee(
+    employeeId: number,
+    workDate: Date,
+  ): Promise<IRepositoryPage<IPmoEmployeeRate>> {
+    return this.queryPage({
+      filter: `${F.employeeRates.EmployeeId} eq ${employeeId} and ${F.employeeRates.EffectiveFrom} le datetime'${odataDate(workDate)}' and (${F.employeeRates.EffectiveTo} eq null or ${F.employeeRates.EffectiveTo} ge datetime'${odataDate(workDate)}')`,
+      orderBy: [`${F.employeeRates.EffectiveFrom} desc`],
+      top: 2,
+    });
+  }
+
+  public getPage(
+    view: "current" | "future" | "expired",
+    asOf: Date,
+    continuation?: string,
+    top = 50,
+  ): Promise<IRepositoryPage<IPmoEmployeeRate>> {
+    const filter =
+      view === "current"
+        ? `${F.employeeRates.IsCurrent} eq 1`
+        : view === "future"
+          ? `${F.employeeRates.EffectiveFrom} gt datetime'${odataDate(asOf)}'`
+          : `${F.employeeRates.EffectiveTo} lt datetime'${odataDate(asOf)}'`;
+    return this.queryPage({
+      filter,
+      orderBy: [
+        `${F.employeeRates.EffectiveFrom} ${view === "future" ? "asc" : "desc"}`,
+      ],
+      top,
+      continuation,
+    });
+  }
 }
 
 const projectExpand = [
@@ -494,6 +543,21 @@ export class ProjectFinancialsRepository extends SharePointRepository<IPmoProjec
       top: 1,
     });
     return page.items[0];
+  }
+
+  public getPage(
+    status?: IPmoProjectFinancials["calculationStatus"],
+    continuation?: string,
+    top = 100,
+  ): Promise<IRepositoryPage<IPmoProjectFinancials>> {
+    return this.queryPage({
+      filter: status
+        ? `${F.projectFinancials.CalculationStatus} eq ${odataString(status)}`
+        : `${F.projectFinancials.ID} gt 0`,
+      orderBy: [`${F.projectFinancials.ProjectCode} asc`],
+      top,
+      continuation,
+    });
   }
 }
 
@@ -709,6 +773,18 @@ export class TimeEntriesRepository extends SharePointRepository<IPmoTimeEntry> {
       filter: `${F.timeEntries.ProjectId} eq ${projectId} and ${F.timeEntries.EntryStatus} eq ${odataString("Approved")}`,
       orderBy: [`${F.timeEntries.WorkDate} asc`],
       top: 200,
+      continuation,
+    });
+  }
+
+  public getApprovedForCostSync(
+    continuation?: string,
+    top = 100,
+  ): Promise<IRepositoryPage<IPmoTimeEntry>> {
+    return this.queryPage({
+      filter: `${F.timeEntries.EntryStatus} eq ${odataString("Approved")} and ${F.timeEntries.ProjectId} ne null`,
+      orderBy: [`${F.timeEntries.WorkDate} asc`, `${F.timeEntries.ID} asc`],
+      top: Math.min(top, 100),
       continuation,
     });
   }
@@ -1207,6 +1283,70 @@ export class ProjectCostsRepository extends SharePointRepository<IPmoProjectCost
       filter: `${F.projectCosts.ProjectId} eq ${projectId} and ${F.projectCosts.CostStatus} eq ${odataString("Approved")}`,
       orderBy: [`${F.projectCosts.CostDate} asc`],
       top: 200,
+      continuation,
+    });
+  }
+
+  public getPage(
+    filters: {
+      readonly projectId?: number;
+      readonly costType?: IPmoProjectCost["costType"];
+      readonly costStatus?: IPmoProjectCost["costStatus"];
+      readonly dateFrom?: Date;
+      readonly dateTo?: Date;
+    },
+    continuation?: string,
+    top = 100,
+  ): Promise<IRepositoryPage<IPmoProjectCost>> {
+    const clauses: string[] = [];
+    if (filters.projectId !== undefined)
+      clauses.push(`${F.projectCosts.ProjectId} eq ${filters.projectId}`);
+    if (filters.costType)
+      clauses.push(
+        `${F.projectCosts.CostType} eq ${odataString(filters.costType)}`,
+      );
+    if (filters.costStatus)
+      clauses.push(
+        `${F.projectCosts.CostStatus} eq ${odataString(filters.costStatus)}`,
+      );
+    if (filters.dateFrom)
+      clauses.push(
+        `${F.projectCosts.CostDate} ge datetime'${odataDate(filters.dateFrom)}'`,
+      );
+    if (filters.dateTo)
+      clauses.push(
+        `${F.projectCosts.CostDate} le datetime'${odataDate(filters.dateTo)}'`,
+      );
+    return this.queryPage({
+      filter: clauses.length
+        ? clauses.join(" and ")
+        : `${F.projectCosts.ID} gt 0`,
+      orderBy: [`${F.projectCosts.CostDate} desc`, `${F.projectCosts.ID} desc`],
+      top,
+      continuation,
+    });
+  }
+
+  public getForSourceTimeEntry(
+    sourceTimeEntryId: number,
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoProjectCost>> {
+    return this.queryPage({
+      filter: `${F.projectCosts.SourceTimeEntryId} eq ${sourceTimeEntryId}`,
+      orderBy: [`${F.projectCosts.ID} desc`],
+      top: 20,
+      continuation,
+    });
+  }
+
+  public getUnapproved(
+    continuation?: string,
+    top = 100,
+  ): Promise<IRepositoryPage<IPmoProjectCost>> {
+    return this.queryPage({
+      filter: `${F.projectCosts.CostStatus} eq ${odataString("Draft")}`,
+      orderBy: [`${F.projectCosts.CostDate} asc`],
+      top,
       continuation,
     });
   }

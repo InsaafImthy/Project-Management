@@ -36,6 +36,7 @@ export type PmoCapability =
   | "approvals.view"
   | "approvals.decide"
   | "finance.view"
+  | "finance.project-summary"
   | "finance.manage"
   | "portfolio.view"
   | "support.failed-actions"
@@ -98,6 +99,10 @@ const capabilitiesFor = (
     values.add("quality.view");
     values.add("resources.view");
     values.add("time.review");
+    // The Project Managers SharePoint group is the explicit approval boundary
+    // for aggregate summaries. Detailed rates and costs still require
+    // finance.view.
+    values.add("finance.project-summary");
   }
   if (roles.has("qa") && eligibility.isQa) {
     values.add("quality.view");
@@ -115,6 +120,7 @@ const capabilitiesFor = (
   if (roles.has("finance")) {
     values.add("employees.manage");
     values.add("finance.view");
+    values.add("finance.project-summary");
     values.add("finance.manage");
   }
   if (roles.has("executive")) {
@@ -122,6 +128,7 @@ const capabilitiesFor = (
     values.add("portfolio.view");
     values.add("approvals.view");
     values.add("finance.view");
+    values.add("finance.project-summary");
   }
   if (roles.has("support")) values.add("support.failed-actions");
   if (roles.has("owner")) {
@@ -140,6 +147,7 @@ const capabilitiesFor = (
         "approvals.view",
         "approvals.decide",
         "finance.view",
+        "finance.project-summary",
         "finance.manage",
         "portfolio.view",
         "support.failed-actions",
@@ -274,6 +282,9 @@ const routeCapabilities: Readonly<Record<string, PmoCapability | undefined>> = {
   "learning-manage": "resources.manage",
   portfolio: "portfolio.view",
   "financial-summary": "finance.view",
+  "employee-rates": "finance.view",
+  "project-costs": "finance.view",
+  "project-financials": "finance.project-summary",
   settings: "configuration.manage",
   "settings-list": "configuration.manage",
   employees: "resources.view",
@@ -308,3 +319,9 @@ export const canReadRestrictedFinancials = (
   user.securityRoles.has("owner") ||
   user.securityRoles.has("finance") ||
   user.securityRoles.has("executive");
+
+export const canReadProjectFinancialSummary = (
+  user: IPmoResolvedUserContext,
+): boolean =>
+  canReadRestrictedFinancials(user) ||
+  user.capabilities.has("finance.project-summary");

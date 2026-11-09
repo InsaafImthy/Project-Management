@@ -16,6 +16,7 @@ import type {
   RiskManagementService,
   ProjectStatusReportService,
   ClosureReadinessService,
+  FinancialManagementService,
 } from "../services/domain";
 
 export interface IPmoFeatureServices {
@@ -35,6 +36,7 @@ export interface IPmoFeatureServices {
   readonly risks: RiskManagementService;
   readonly statusReports: ProjectStatusReportService;
   readonly closureReadiness: ClosureReadinessService;
+  readonly finance: FinancialManagementService;
 }
 
 export const PmoServicesContext = React.createContext<

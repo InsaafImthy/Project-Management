@@ -24,6 +24,7 @@ export interface IProjectDraft {
   readonly confidentiality: IPmoProject["confidentiality"];
   readonly projectValue?: number;
   readonly baselineCostBudget?: number;
+  readonly approvedCostBudget?: number;
 }
 
 export interface IProjectMemberDraft {
@@ -74,6 +75,9 @@ export const validateProjectDraft = (
   }
   if (draft.baselineCostBudget !== undefined && draft.baselineCostBudget < 0) {
     errors.baselineCostBudget = "Baseline cost budget must be zero or greater.";
+  }
+  if (draft.approvedCostBudget !== undefined && draft.approvedCostBudget < 0) {
+    errors.approvedCostBudget = "Approved cost budget must be zero or greater.";
   }
   return errors;
 };

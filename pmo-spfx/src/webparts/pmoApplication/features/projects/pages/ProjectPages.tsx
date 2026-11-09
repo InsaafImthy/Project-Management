@@ -26,6 +26,7 @@ import {
   DateInput,
   EmptyState,
   LoadingSkeleton,
+  MoneyDisplay,
   NumberInput,
   PercentageDisplay,
   AvatarName,
@@ -43,6 +44,7 @@ import type {
   IPmoEmployee,
   IPmoPerson,
   IPmoProject,
+  IPmoProjectFinancials,
   IPmoProjectMember,
 } from "../../../models/domain";
 import type { IProjectListFilters } from "../../../services/domain/ProjectManagementService";
@@ -504,12 +506,32 @@ const ProjectForm = ({
   readonly project?: IPmoProject;
   readonly onSaved: (project: IPmoProject) => void;
 }): React.ReactElement => {
-  const { projects, people } = usePmoServices();
+  const { projects, people, finance } = usePmoServices();
   const user = usePmoCurrentUser();
   const { navigate } = usePmoRoute();
   const interactions = usePmoInteractions();
   const form = useFormState(toDraft(project), validateProjectDraft);
+  const canManageFinancials = user.capabilities.indexOf("finance.manage") >= 0;
   const [saving, setSaving] = React.useState(false);
+  React.useEffect(() => {
+    if (!project || !canManageFinancials) return;
+    let active = true;
+    finance
+      .getProjectFinancials(project.id)
+      .then((financials) => {
+        if (!active || !financials) return;
+        form.reset({
+          ...toDraft(project),
+          projectValue: financials.projectValue,
+          baselineCostBudget: financials.baselineCostBudget,
+          approvedCostBudget: financials.approvedCostBudget,
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [canManageFinancials, finance, form.reset, project]);
   const resolvePeople = async (query: string) =>
     (await people.search(query)).map((person) => ({
       id: String(person.id),
@@ -725,7 +747,7 @@ const ProjectForm = ({
           />
         </FormRow>
       </FormSection>
-      {user.capabilities.indexOf("finance.manage") >= 0 ? (
+      {canManageFinancials ? (
         <FormSection title="Finance">
           <FormRow>
             <NumberInput
@@ -739,6 +761,12 @@ const ProjectForm = ({
               value={form.values.baselineCostBudget}
               min={0}
               onChange={(value) => form.setValue("baselineCostBudget", value)}
+            />
+            <NumberInput
+              label="Approved cost budget"
+              value={form.values.approvedCostBudget}
+              min={0}
+              onChange={(value) => form.setValue("approvedCostBudget", value)}
             />
           </FormRow>
         </FormSection>
@@ -1017,6 +1045,110 @@ const TeamPanel = ({
         />
       </FormPanel>
     </Stack>
+  );
+};
+
+const ProjectFinancialsTab = ({
+  project,
+}: {
+  readonly project: IPmoProject;
+}): React.ReactElement => {
+  const { finance } = usePmoServices();
+  const { navigate } = usePmoRoute();
+  const [summary, setSummary] = React.useState<IPmoProjectFinancials>();
+  const [error, setError] = React.useState<string>();
+  const [loaded, setLoaded] = React.useState(false);
+  React.useEffect(() => {
+    let active = true;
+    finance
+      .getProjectFinancials(project.id)
+      .then((value) => {
+        if (!active) return;
+        setSummary(value);
+        setLoaded(true);
+      })
+      .catch((caught) => active && setError(toUserSafeErrorMessage(caught)));
+    return () => {
+      active = false;
+      setSummary(undefined);
+      finance.clearConfidentialData();
+    };
+  }, [finance, project.id]);
+  if (error)
+    return <EmptyState title="Financials unavailable" description={error} />;
+  if (!loaded)
+    return <LoadingSkeleton label="Loading restricted project financials" />;
+  if (!summary)
+    return (
+      <EmptyState
+        title="Financial summary not created"
+        description="An authorized Finance user must initialize this project's restricted financial summary."
+      />
+    );
+  return (
+    <SummaryCard title="Financial summary">
+      <Stack direction="horizontal" gap="lg" wrap>
+        <div>
+          <strong>Project value</strong>
+          <br />
+          <MoneyDisplay
+            value={summary.projectValue}
+            currency={summary.currencyCode}
+          />
+        </div>
+        <div>
+          <strong>Approved cost budget</strong>
+          <br />
+          <MoneyDisplay
+            value={summary.approvedCostBudget}
+            currency={summary.currencyCode}
+          />
+        </div>
+        <div>
+          <strong>Actual cost</strong>
+          <br />
+          <MoneyDisplay
+            value={summary.actualCost}
+            currency={summary.currencyCode}
+          />
+        </div>
+        <div>
+          <strong>Forecast cost</strong>
+          <br />
+          <MoneyDisplay
+            value={summary.forecastCost}
+            currency={summary.currencyCode}
+          />
+        </div>
+        <div>
+          <strong>Forecast margin</strong>
+          <br />
+          {summary.projectValue === 0 ? (
+            "Not applicable"
+          ) : (
+            <PercentageDisplay value={summary.forecastMarginPercent} />
+          )}
+        </div>
+      </Stack>
+      <p>
+        Calculation status: <StatusBadge text={summary.calculationStatus} /> ·
+        Last calculated:{" "}
+        <DateDisplay value={summary.calculatedOn} includeTime />
+      </p>
+      <AppButton
+        text="Open restricted financials"
+        onClick={() =>
+          navigate({
+            view: "project-financials",
+            parameters: { projectId: String(project.id) },
+            query: {
+              view: "project-financials",
+              projectId: String(project.id),
+            },
+          })
+        }
+      />
+    </SummaryCard>
   );
 };
 
@@ -1353,6 +1485,16 @@ export const ProjectWorkspacePage = (): React.ReactElement => {
             label: "Team",
             content: <TeamPanel project={project} onChanged={load} />,
           },
+          ...(user.capabilities.indexOf("finance.project-summary") >= 0 ||
+          user.capabilities.indexOf("finance.view") >= 0
+            ? [
+                {
+                  key: "financials",
+                  label: "Financials",
+                  content: <ProjectFinancialsTab project={project} />,
+                },
+              ]
+            : []),
           {
             key: "plan",
             label: "Plan",

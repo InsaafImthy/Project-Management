@@ -3,6 +3,7 @@ export { ApprovalWorkflowService } from "./ApprovalWorkflowService";
 export { ChangeManagementService } from "./ChangeManagementService";
 export * from "./DomainRules";
 export { MetricsService } from "./MetricsService";
+export * from "./FinancialManagementService";
 export * from "./QualityGovernanceService";
 export * from "./RiskManagementService";
 export * from "./ProjectStatusReportService";
@@ -26,6 +27,7 @@ export {
   assertCapability,
   canAccessProject,
   canOpenRoute,
+  canReadProjectFinancialSummary,
   canReadRestrictedFinancials,
   hasCapability,
 } from "./UserCapabilityService";
