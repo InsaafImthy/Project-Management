@@ -6,6 +6,7 @@ import {
   DashboardSection,
   ConfirmDialog,
   DescriptionList,
+  DocumentLinkSelector,
   EntityDetailLayout,
   EntityListPage,
   FormPanel,
@@ -26,6 +27,7 @@ import {
   LoadingSkeleton,
   NumberInput,
   SelectInput,
+  Stack,
   StatusBadge,
   TextArea,
 } from "../../../components/primitives";
@@ -36,6 +38,7 @@ import type {
   IPmoApprovalRequest,
   IPmoChangeRequest,
   IPmoProject,
+  IPmoProjectDocument,
   IPmoWorkItem,
 } from "../../../models/domain";
 import { usePmoRoute } from "../../../routing/pmoRoutes";
@@ -905,13 +908,17 @@ export const ApprovalQueuePage = (): React.ReactElement => {
 };
 
 export const ApprovalDetailPage = (): React.ReactElement => {
-  const { changes } = usePmoServices();
+  const { changes, documents } = usePmoServices();
   const { route, back } = usePmoRoute();
   const interactions = usePmoInteractions();
   const user = usePmoCurrentUser();
   const [approval, setApproval] = React.useState<IPmoApprovalRequest>();
   const [source, setSource] = React.useState<IPmoChangeRequest>();
   const [decision, setDecision] = React.useState<ApprovalDecision>();
+  const [evidenceDocuments, setEvidenceDocuments] = React.useState<
+    readonly IPmoProjectDocument[]
+  >([]);
+  const [evidenceUrl, setEvidenceUrl] = React.useState("");
   const id = Number(route.parameters.approvalId ?? route.query.approvalId);
   const load = () => {
     if (!id) return;
@@ -925,6 +932,28 @@ export const ApprovalDetailPage = (): React.ReactElement => {
     });
   };
   React.useEffect(load, [changes, id]);
+  React.useEffect(() => {
+    if (!approval) return;
+    let active = true;
+    void documents
+      .list(approval.projectId, approval.projectCode)
+      .then(
+        (items) =>
+          active &&
+          setEvidenceDocuments(
+            items.filter(
+              (document) =>
+                document.documentType === "Approval Evidence" &&
+                (!document.approvalRequestId ||
+                  document.approvalRequestId === approval.id),
+            ),
+          ),
+      )
+      .catch(() => active && setEvidenceDocuments([]));
+    return () => {
+      active = false;
+    };
+  }, [approval, documents]);
   if (!approval)
     return (
       <ContentContainer>
@@ -1051,6 +1080,31 @@ export const ApprovalDetailPage = (): React.ReactElement => {
                 <p>
                   Open the governed source record for its current and baseline
                   values.
+                </p>
+              ),
+            },
+            {
+              key: "evidence",
+              title: "Approval evidence",
+              content: evidenceDocuments.length ? (
+                <Stack direction="horizontal" gap="sm" wrap>
+                  <DocumentLinkSelector
+                    documents={evidenceDocuments}
+                    value={evidenceUrl}
+                    allowedTypes={["Approval Evidence"]}
+                    onChange={setEvidenceUrl}
+                  />
+                  <AppButton
+                    text="Open evidence"
+                    disabled={!evidenceUrl}
+                    onClick={() =>
+                      window.open(evidenceUrl, "_blank", "noopener,noreferrer")
+                    }
+                  />
+                </Stack>
+              ) : (
+                <p>
+                  No accessible approval evidence is linked to this request.
                 </p>
               ),
             },

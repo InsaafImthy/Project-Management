@@ -4,3 +4,25 @@
   color: var(--bodyText, #323130);
   font-family: "Segoe UI", "Segoe UI Web (West European)", Arial, sans-serif;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .pmoApplication,
+  .pmoApplication * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  .pmoApplication {
+    color: #000;
+  }
+
+  .pmoApplication button,
+  .pmoApplication nav,
+  .pmoApplication aside {
+    display: none !important;
+  }
+}

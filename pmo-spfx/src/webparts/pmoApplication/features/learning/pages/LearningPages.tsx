@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
   DashboardLayout,
+  DocumentLinkSelector,
   EntityListPage,
   FormDialog,
   FormRow,
@@ -23,7 +24,10 @@ import {
 } from "../../../components/primitives";
 import { usePmoInteractions } from "../../../context/PmoApplicationContext";
 import { usePmoServices } from "../../../context/PmoServicesContext";
-import type { IPmoLearningAssignment } from "../../../models/domain";
+import type {
+  IPmoLearningAssignment,
+  IPmoProjectDocument,
+} from "../../../models/domain";
 import type { ILearningDraft } from "../../../services/domain/LearningManagementService";
 import { toUserSafeErrorMessage } from "../../../utils/toUserSafeErrorMessage";
 
@@ -172,9 +176,17 @@ const LearningForm = ({
   );
 };
 export const MyLearningPage = (): React.ReactElement => {
-  const { learning } = usePmoServices();
+  const { learning, documents } = usePmoServices();
   const interactions = usePmoInteractions();
   const [items, setItems] = React.useState<readonly IPmoLearningAssignment[]>();
+  const [evidenceAssignment, setEvidenceAssignment] =
+    React.useState<IPmoLearningAssignment>();
+  const [evidenceProjectId, setEvidenceProjectId] = React.useState("");
+  const [evidenceProjectCode, setEvidenceProjectCode] = React.useState("");
+  const [evidenceDocuments, setEvidenceDocuments] = React.useState<
+    readonly IPmoProjectDocument[]
+  >([]);
+  const [evidenceUrl, setEvidenceUrl] = React.useState("");
   const load = () =>
     void learning
       .mine()
@@ -230,11 +242,8 @@ export const MyLearningPage = (): React.ReactElement => {
               key: "submit",
               label: "Submit evidence",
               onClick: () => {
-                const link = window.prompt(
-                  "Evidence link",
-                  item.evidenceLink?.url ?? "",
-                );
-                if (link) void learning.submitEvidence(item, link).then(load);
+                setEvidenceAssignment(item);
+                setEvidenceUrl(item.evidenceLink?.url ?? "");
               },
             },
             {
@@ -244,6 +253,49 @@ export const MyLearningPage = (): React.ReactElement => {
             },
           ]}
         />
+        <FormDialog
+          open={Boolean(evidenceAssignment)}
+          title="Link learning evidence"
+          submitLabel="Submit evidence"
+          onDismiss={() => setEvidenceAssignment(undefined)}
+          onSubmit={() => {
+            if (!evidenceAssignment || !evidenceUrl) return;
+            void learning
+              .submitEvidence(evidenceAssignment, evidenceUrl)
+              .then(() => {
+                setEvidenceAssignment(undefined);
+                load();
+              });
+          }}
+        >
+          <FormRow>
+            <TextInput
+              label="Project ID"
+              value={evidenceProjectId}
+              onChange={setEvidenceProjectId}
+            />
+            <TextInput
+              label="Project code"
+              value={evidenceProjectCode}
+              onChange={setEvidenceProjectCode}
+            />
+          </FormRow>
+          <AppButton
+            text="Load accessible project documents"
+            disabled={!evidenceProjectId || !evidenceProjectCode}
+            onClick={() =>
+              void documents
+                .list(Number(evidenceProjectId), evidenceProjectCode)
+                .then(setEvidenceDocuments)
+            }
+          />
+          <DocumentLinkSelector
+            documents={evidenceDocuments}
+            value={evidenceUrl}
+            allowedTypes={["Task Evidence", "Deliverable", "Other"]}
+            onChange={setEvidenceUrl}
+          />
+        </FormDialog>
       </DashboardLayout>
     </ContentContainer>
   );

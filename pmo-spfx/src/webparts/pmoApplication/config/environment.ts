@@ -1,6 +1,8 @@
 export const PMO_SITE_URL =
   "https://aufaitcloud.sharepoint.com/sites/ProjectManagementTool";
 export const PMO_SITE_RELATIVE_URL = "/sites/ProjectManagementTool";
+/** Keep aligned with package.json and the four-part SPFx solution version. */
+export const PMO_APPLICATION_VERSION = "1.1.0";
 
 import { PMO_CONTAINERS, type PmoContainerName } from "./sharePointSchema";
 

@@ -3,7 +3,7 @@
   "solution": {
     "name": "pmo-spfx-client-side-solution",
     "id": "8fc0f399-fd4c-4642-88c1-42aca0184b78",
-    "version": "1.0.0.0",
+    "version": "1.1.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "developer": {
@@ -15,10 +15,10 @@
     },
     "metadata": {
       "shortDescription": {
-        "default": "pmo-spfx description"
+        "default": "SharePoint-backed PMO and project delivery workspace"
       },
       "longDescription": {
-        "default": "pmo-spfx description"
+        "default": "Governed project planning, execution, time, approvals, quality, resources, financials, reporting and document workflows for SharePoint Online."
       },
       "screenshotPaths": [],
       "videoUrl": "",

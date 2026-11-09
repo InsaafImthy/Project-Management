@@ -1,4 +1,5 @@
 import type { IPmoEmployee, IPmoProjectMember } from "../../models/domain";
+import { canOpenPmoRoute } from "../../authorization/routeAuthorization";
 import type {
   EmployeesRepository,
   ProjectMembersRepository,
@@ -41,42 +42,6 @@ export type PmoCapability =
   | "portfolio.view"
   | "support.failed-actions"
   | "configuration.manage";
-
-/**
- * Break-glass administrators whose application authorization must not depend on
- * SharePoint group or PMO employee-list membership. Keep this list deliberately
- * small: entries receive every application role and capability.
- */
-const ADMINISTRATOR_OVERRIDE_EMAILS = new Set([
-  "insaaf.imthiyas@aufaittechnologies.com",
-]);
-
-const ALL_CAPABILITIES: readonly PmoCapability[] = [
-  "employees.view-own",
-  "employees.manage",
-  "work.view-own",
-  "work.act-own",
-  "time.view-own",
-  "time.edit-own",
-  "time.review",
-  "projects.view",
-  "projects.manage",
-  "quality.view",
-  "quality.manage",
-  "resources.view",
-  "resources.manage",
-  "approvals.view",
-  "approvals.decide",
-  "finance.view",
-  "finance.project-summary",
-  "finance.manage",
-  "portfolio.view",
-  "support.failed-actions",
-  "configuration.manage",
-];
-
-const isAdministratorOverride = (email: string): boolean =>
-  ADMINISTRATOR_OVERRIDE_EMAILS.has(email.trim().toLowerCase());
 
 export interface IPmoEligibility {
   readonly isProjectManager: boolean;
@@ -237,13 +202,6 @@ export class UserCapabilityService {
     sharePointUserId: number,
     role: PmoSecurityRole,
   ): Promise<boolean> {
-    const current = await this.resolveCurrent();
-    if (
-      current.sharePointUserId === sharePointUserId &&
-      isAdministratorOverride(current.email)
-    ) {
-      return true;
-    }
     const group = encodeURIComponent(PMO_GROUPS[role].replace(/'/g, "''"));
     const response = await this.client.getJson<IUserMembershipWire>(
       `_api/web/sitegroups/getbyname('${group}')/users?$select=Id&$filter=Id eq ${sharePointUserId}`,
@@ -263,34 +221,25 @@ export class UserCapabilityService {
       ),
     ]);
     const normalizedEmail = current.Email.trim().toLowerCase();
-    const hasAdministratorOverride = isAdministratorOverride(normalizedEmail);
-    const employee =
-      current.Email && !hasAdministratorOverride
-        ? await this.employees.getActiveByEmail(current.Email)
-        : undefined;
+    const employee = normalizedEmail
+      ? await this.employees.getActiveByEmail(normalizedEmail)
+      : undefined;
     const groupTitles = new Set(
       (groups.value ?? groups.d?.results ?? []).map((group) => group.Title),
     );
     const securityRoles = new Set<PmoSecurityRole>();
     const allRoles = Object.keys(PMO_GROUPS) as PmoSecurityRole[];
     allRoles.forEach((role) => {
-      if (hasAdministratorOverride || groupTitles.has(PMO_GROUPS[role])) {
+      if (groupTitles.has(PMO_GROUPS[role])) {
         securityRoles.add(role);
       }
     });
-    const eligibility: IPmoEligibility = hasAdministratorOverride
-      ? {
-          isProjectManager: true,
-          isQa: true,
-          isApprover: true,
-          isResourceManager: true,
-        }
-      : {
-          isProjectManager: employee?.isProjectManager ?? false,
-          isQa: employee?.isQa ?? false,
-          isApprover: employee?.isApprover ?? false,
-          isResourceManager: employee?.isResourceManager ?? false,
-        };
+    const eligibility: IPmoEligibility = {
+      isProjectManager: employee?.isProjectManager ?? false,
+      isQa: employee?.isQa ?? false,
+      isApprover: employee?.isApprover ?? false,
+      isResourceManager: employee?.isResourceManager ?? false,
+    };
     return {
       sharePointUserId: current.Id,
       displayName: current.Title,
@@ -299,9 +248,11 @@ export class UserCapabilityService {
       employee,
       eligibility,
       securityRoles,
-      capabilities: hasAdministratorOverride
-        ? new Set(ALL_CAPABILITIES)
-        : capabilitiesFor(securityRoles, eligibility, employee !== undefined),
+      capabilities: capabilitiesFor(
+        securityRoles,
+        eligibility,
+        employee !== undefined,
+      ),
     };
   }
 }
@@ -320,41 +271,10 @@ export const assertCapability = (
   }
 };
 
-const routeCapabilities: Readonly<Record<string, PmoCapability | undefined>> = {
-  home: undefined,
-  "my-work": "work.view-own",
-  "my-time": "time.view-own",
-  "my-learning": "time.view-own",
-  "time-daily": "time.view-own",
-  "time-weekly": "time.view-own",
-  "time-review": "time.review",
-  reviews: "projects.manage",
-  projects: "projects.view",
-  approvals: "approvals.view",
-  quality: "quality.view",
-  resources: "resources.view",
-  "learning-manage": "resources.manage",
-  portfolio: "portfolio.view",
-  "financial-summary": "finance.view",
-  "employee-rates": "finance.view",
-  "project-costs": "finance.view",
-  "project-financials": "finance.project-summary",
-  settings: "configuration.manage",
-  "settings-list": "configuration.manage",
-  employees: "resources.view",
-  "employee-list": "resources.view",
-  employee: "resources.view",
-  "my-profile": "employees.view-own",
-};
-
 export const canOpenRoute = (
   user: IPmoResolvedUserContext,
   route: string,
-): boolean => {
-  if (!(route in routeCapabilities)) return false;
-  const capability = routeCapabilities[route];
-  return capability === undefined || hasCapability(user, capability);
-};
+): boolean => canOpenPmoRoute(Array.from(user.capabilities), route);
 
 export const canAccessProject = (
   user: IPmoResolvedUserContext,

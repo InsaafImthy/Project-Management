@@ -1,5 +1,12 @@
 import * as React from "react";
 
+export {
+  PMO_ROUTE_AUTHORIZATION,
+  canOpenPmoRoute,
+  isKnownPmoRoute,
+} from "../authorization/routeAuthorization";
+export type { IPmoRouteAuthorization } from "../authorization/routeAuthorization";
+
 export const PMO_ROUTES = {
   home: "home",
   myWork: "my-work",
@@ -31,6 +38,7 @@ export const PMO_ROUTES = {
   employeeList: "employee-list",
   employee: "employee",
   myProfile: "my-profile",
+  supportDiagnostics: "support-diagnostics",
 } as const;
 
 export type PmoRoute =
@@ -184,6 +192,13 @@ export const PMO_NAVIGATION: readonly IPmoNavigationItem[] = [
     requiredCapabilities: ["projects.view"],
   },
   {
+    key: "reports",
+    group: "Governance",
+    label: "Reports",
+    route: PMO_ROUTES.reports,
+    iconName: "ReportDocument",
+  },
+  {
     key: "financials",
     group: "Restricted",
     label: "Financial Summary",
@@ -198,6 +213,14 @@ export const PMO_NAVIGATION: readonly IPmoNavigationItem[] = [
     route: PMO_ROUTES.settings,
     iconName: "Settings",
     requiredCapabilities: ["configuration.manage"],
+  },
+  {
+    key: "support-diagnostics",
+    group: "Administration",
+    label: "Support diagnostics",
+    route: PMO_ROUTES.supportDiagnostics,
+    iconName: "Diagnostic",
+    requiredCapabilities: ["support.failed-actions"],
   },
 ];
 

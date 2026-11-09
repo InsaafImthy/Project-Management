@@ -2,12 +2,14 @@ import * as React from "react";
 import {
   DashboardLayout,
   DashboardSection,
+  DocumentLinkSelector,
   EntityDetailLayout,
   EntityListPage,
   FormDialog,
   FormRow,
   KpiCard,
   KpiGrid,
+  ReasonDialog,
   Timeline,
   type IDataTableColumn,
 } from "../../../components/composites";
@@ -21,6 +23,7 @@ import {
   NumberInput,
   PercentageDisplay,
   PriorityBadge,
+  SelectInput,
   Stack,
   StatusBadge,
   TextArea,
@@ -28,7 +31,11 @@ import {
 import { usePmoInteractions } from "../../../context/PmoApplicationContext";
 import { usePmoServices } from "../../../context/PmoServicesContext";
 import { usePmoCurrentUser } from "../../../hooks/usePmoCurrentUser";
-import type { IPmoTaskAction, IPmoWorkItem } from "../../../models/domain";
+import type {
+  IPmoProjectDocument,
+  IPmoTaskAction,
+  IPmoWorkItem,
+} from "../../../models/domain";
 import { usePmoRoute } from "../../../routing/pmoRoutes";
 import type { ITaskActionInput } from "../../../services/domain/DomainRules";
 import { toUserSafeErrorMessage } from "../../../utils/toUserSafeErrorMessage";
@@ -66,7 +73,7 @@ const ActionDialog = ({
   readonly onDismiss: () => void;
   readonly onApplied: () => void;
 }): React.ReactElement => {
-  const { work } = usePmoServices();
+  const { work, documents } = usePmoServices();
   const interactions = usePmoInteractions();
   const [actionType, setActionType] =
     React.useState<ITaskActionInput["actionType"]>("Comment");
@@ -75,6 +82,9 @@ const ActionDialog = ({
   const [remainingEffortHours, setRemainingEffortHours] =
     React.useState<number>();
   const [saving, setSaving] = React.useState(false);
+  const [projectDocuments, setProjectDocuments] = React.useState<
+    readonly IPmoProjectDocument[]
+  >([]);
   React.useEffect(() => {
     if (open) {
       setActionType(actionOptions(item)[0] ?? "Comment");
@@ -83,6 +93,17 @@ const ActionDialog = ({
       setRemainingEffortHours(undefined);
     }
   }, [open, item]);
+  React.useEffect(() => {
+    if (!open) return;
+    let active = true;
+    void documents
+      .list(item.projectId, item.projectCode)
+      .then((items) => active && setProjectDocuments(items))
+      .catch(() => active && setProjectDocuments([]));
+    return () => {
+      active = false;
+    };
+  }, [documents, item.projectCode, item.projectId, open]);
   const apply = async () => {
     setSaving(true);
     try {
@@ -122,21 +143,17 @@ const ActionDialog = ({
       saving={saving}
       submitLabel={actionType}
     >
-      <label>
-        Action{" "}
-        <select
-          value={actionType}
-          onChange={(event) =>
-            setActionType(event.target.value as ITaskActionInput["actionType"])
-          }
-        >
-          {actionOptions(item).map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-      </label>
+      <SelectInput
+        label="Action"
+        value={actionType}
+        options={actionOptions(item).map((value) => ({
+          key: value,
+          text: value,
+        }))}
+        onChange={(value) =>
+          setActionType(value as ITaskActionInput["actionType"])
+        }
+      />
       {actionType === "Progress Update" ? (
         <FormRow>
           <NumberInput
@@ -172,10 +189,23 @@ const ActionDialog = ({
             "Reopen Request",
           ].indexOf(actionType) >= 0
         }
-        hint="Document links can be pasted now; project-library selection is completed in Stage 12."
+        hint="Summarize the work and include the selected project-library evidence link when required."
         value={comment}
         onChange={setComment}
       />
+      {actionType === "Submit for Review" && projectDocuments.length ? (
+        <DocumentLinkSelector
+          documents={projectDocuments}
+          allowedTypes={["Task Evidence", "Deliverable"]}
+          onChange={(url) =>
+            setComment((current) =>
+              url && current.indexOf(url) < 0
+                ? `${current.trim()}${current.trim() ? "\n" : ""}${url}`
+                : current,
+            )
+          }
+        />
+      ) : null}
     </FormDialog>
   );
 };
@@ -239,7 +269,7 @@ const WorkTable = ({
 
 export const MyWorkPage = (): React.ReactElement => {
   const { work } = usePmoServices();
-  const { navigate } = usePmoRoute();
+  const { route, navigate } = usePmoRoute();
   const [items, setItems] = React.useState<readonly IPmoWorkItem[]>([]);
   const [actions, setActions] = React.useState<readonly IPmoTaskAction[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -276,6 +306,41 @@ export const MyWorkPage = (): React.ReactElement => {
   const returned = actions.filter(
     (action) => action.processingStatus === "Rejected",
   ).length;
+  const visibleItems = items.filter((item) => {
+    if (route.query.status && item.status !== route.query.status) return false;
+    if (
+      route.query.overdue === "true" &&
+      (!item.plannedEnd || item.plannedEnd >= today)
+    )
+      return false;
+    if (
+      route.query.due === "week" &&
+      (!item.plannedEnd ||
+        item.plannedEnd < today ||
+        item.plannedEnd > new Date(today.valueOf() + 7 * 86400000))
+    )
+      return false;
+    if (
+      route.query.attention === "blocked-returned" &&
+      item.status !== "Blocked" &&
+      !actions.some(
+        (action) =>
+          action.workItemId === item.id &&
+          action.processingStatus === "Rejected",
+      )
+    )
+      return false;
+    if (
+      route.query.actionStatus &&
+      !actions.some(
+        (action) =>
+          action.workItemId === item.id &&
+          action.processingStatus === route.query.actionStatus,
+      )
+    )
+      return false;
+    return true;
+  });
   const open = (item: IPmoWorkItem) =>
     navigate({
       view: WORK_ROUTES.task,
@@ -306,7 +371,7 @@ export const MyWorkPage = (): React.ReactElement => {
             <KpiCard title="Rejected Task Actions" value={returned} />
           </KpiGrid>
         </DashboardSection>
-        <WorkTable items={items} onOpen={open} />
+        <WorkTable items={visibleItems} onOpen={open} />
       </DashboardLayout>
     </ContentContainer>
   );
@@ -466,6 +531,10 @@ export const ReviewQueuePage = (): React.ReactElement => {
   const interactions = usePmoInteractions();
   const [items, setItems] = React.useState<readonly IPmoWorkItem[]>([]);
   const [error, setError] = React.useState<string>();
+  const [pendingReason, setPendingReason] = React.useState<{
+    readonly item: IPmoWorkItem;
+    readonly action: "Return" | "Request Clarification";
+  }>();
   const load = () => {
     void Promise.all([work.reviewQueue(), work.qaQueue()])
       .then(([review, qa]) => setItems([...review.items, ...qa.items]))
@@ -499,13 +568,15 @@ export const ReviewQueuePage = (): React.ReactElement => {
   const apply = (
     item: IPmoWorkItem,
     action: "Accept" | "Return" | "Request Clarification" | "Route to QA",
-  ) => {
-    const comment =
-      action === "Accept" || action === "Route to QA"
-        ? undefined
-        : (window.prompt(`${action} comment`) ?? undefined);
-    if ((action === "Return" || action === "Request Clarification") && !comment)
+    comment?: string,
+  ): void => {
+    if (
+      (action === "Return" || action === "Request Clarification") &&
+      !comment
+    ) {
+      setPendingReason({ item, action });
       return;
+    }
     void work
       .review(item.id, action, comment)
       .then(() => {
@@ -568,6 +639,23 @@ export const ReviewQueuePage = (): React.ReactElement => {
             onClick: () => apply(item, "Request Clarification"),
           },
         ]}
+      />
+      <ReasonDialog
+        open={Boolean(pendingReason)}
+        title={
+          pendingReason?.action === "Return"
+            ? "Return work"
+            : "Request clarification"
+        }
+        actionLabel={pendingReason?.action ?? "Continue"}
+        minimumLength={3}
+        onSubmit={(reason) => {
+          if (pendingReason) {
+            apply(pendingReason.item, pendingReason.action, reason);
+            setPendingReason(undefined);
+          }
+        }}
+        onDismiss={() => setPendingReason(undefined)}
       />
     </ContentContainer>
   );

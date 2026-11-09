@@ -122,6 +122,11 @@ export const layoutStyles = mergeStyleSets({
     fontWeight: t.typography.weights.semibold,
   },
   headerUser: { alignItems: "center", display: "flex", gap: t.spacing.sm },
+  headerVersion: {
+    color: t.colors.neutral.muted,
+    fontSize: t.typography.sizes.caption,
+    whiteSpace: "nowrap",
+  },
   breadcrumbs: {
     color: t.colors.neutral.muted,
     fontSize: t.typography.sizes.caption,

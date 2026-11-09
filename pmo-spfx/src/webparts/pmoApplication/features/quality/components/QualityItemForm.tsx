@@ -1,6 +1,10 @@
 import * as React from "react";
 import { PMO_CHOICES } from "../../../config/sharePointSchema";
-import { FormRow, FormSection } from "../../../components/composites";
+import {
+  DocumentLinkSelector,
+  FormRow,
+  FormSection,
+} from "../../../components/composites";
 import {
   CheckboxInput,
   DateInput,
@@ -11,7 +15,8 @@ import {
   TextInput,
   type IPmoPerson as IPickerPerson,
 } from "../../../components/primitives";
-import type { IPmoPerson } from "../../../models/domain";
+import type { IPmoPerson, IPmoProjectDocument } from "../../../models/domain";
+import { PmoServicesContext } from "../../../context/PmoServicesContext";
 import type {
   IQualityItemDraft,
   QualityValidationErrors,
@@ -46,6 +51,24 @@ export const QualityItemForm = ({
   onChange,
   onResolvePeople,
 }: IQualityItemFormProps): React.ReactElement => {
+  const services = React.useContext(PmoServicesContext);
+  const [projectDocuments, setProjectDocuments] = React.useState<
+    readonly IPmoProjectDocument[]
+  >([]);
+  React.useEffect(() => {
+    if (!services || !draft.projectId || !draft.projectCode) {
+      setProjectDocuments([]);
+      return;
+    }
+    let active = true;
+    void services.documents
+      .list(draft.projectId, draft.projectCode)
+      .then((items) => active && setProjectDocuments(items))
+      .catch(() => active && setProjectDocuments([]));
+    return () => {
+      active = false;
+    };
+  }, [draft.projectCode, draft.projectId, services]);
   const set = <K extends keyof IQualityItemDraft>(
     key: K,
     value: IQualityItemDraft[K],
@@ -150,16 +173,25 @@ export const QualityItemForm = ({
                 set("testResult", value as IQualityItemDraft["testResult"])
               }
             />
-            <TextInput
-              label="Evidence link"
-              value={draft.evidenceLink ?? ""}
-              disabled={readOnly}
-              required={
-                draft.testResult === "Fail" || draft.testResult === "Blocked"
-              }
-              errorMessage={errors.evidenceLink}
-              onChange={(value) => set("evidenceLink", value)}
-            />
+            {projectDocuments.length && !readOnly ? (
+              <DocumentLinkSelector
+                documents={projectDocuments}
+                value={draft.evidenceLink}
+                allowedTypes={["QA Evidence", "Task Evidence", "Deliverable"]}
+                onChange={(value) => set("evidenceLink", value)}
+              />
+            ) : (
+              <TextInput
+                label="Evidence link"
+                value={draft.evidenceLink ?? ""}
+                disabled={readOnly}
+                required={
+                  draft.testResult === "Fail" || draft.testResult === "Blocked"
+                }
+                errorMessage={errors.evidenceLink}
+                onChange={(value) => set("evidenceLink", value)}
+              />
+            )}
           </FormRow>
         </FormSection>
       ) : null}

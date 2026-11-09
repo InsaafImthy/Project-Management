@@ -1,5 +1,11 @@
 import * as React from "react";
-import { Icon, MessageBar, MessageBarType } from "@fluentui/react";
+import {
+  Icon,
+  MessageBar,
+  MessageBarType,
+  Panel,
+  PanelType,
+} from "@fluentui/react";
 import { usePmoCurrentUser } from "../../hooks/usePmoCurrentUser";
 import {
   usePmoDisplayPreferences,
@@ -15,6 +21,9 @@ import {
 import { ConfirmDialog } from "../composites/Forms";
 import { AppButton, AvatarName, IconButton } from "../primitives";
 import { layoutStyles as styles } from "./layoutStyles";
+import { PmoServicesContext } from "../../context/PmoServicesContext";
+import type { IActionCenterResult } from "../../services/domain/ActionCenterService";
+import { PMO_APPLICATION_VERSION } from "../../config/environment";
 
 export interface IPageBreadcrumb {
   readonly text: string;
@@ -145,6 +154,127 @@ export interface IAppHeaderProps {
   readonly userName: string;
 }
 
+const ActionCenterLauncher = (): React.ReactElement => {
+  const services = React.useContext(PmoServicesContext);
+  const { navigate } = usePmoRoute();
+  const [open, setOpen] = React.useState(false);
+  const [actions, setActions] = React.useState<IActionCenterResult>();
+  const [loading, setLoading] = React.useState(false);
+  const load = (): void => {
+    if (!services) return;
+    setLoading(true);
+    void services.actionCenter
+      .getActions()
+      .then(setActions)
+      .catch(() => undefined)
+      .then(() => setLoading(false));
+  };
+  React.useEffect(load, [services]);
+  const go = (view: string, query: Readonly<Record<string, string>> = {}) => {
+    setOpen(false);
+    navigate({ view, parameters: {}, query: { view, ...query } });
+  };
+  const total = actions
+    ? Object.keys(actions.counts).reduce(
+        (sum, key) => sum + actions.counts[key as keyof typeof actions.counts],
+        0,
+      )
+    : 0;
+  const items: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly count: number;
+    readonly view: string;
+    readonly query: Readonly<Record<string, string>>;
+  }[] = actions
+    ? [
+        {
+          key: "assigned",
+          label: "Assigned",
+          count: actions.counts.awaitingAcceptance,
+          view: "my-work",
+          query: { status: "Assigned" },
+        },
+        {
+          key: "overdue",
+          label: "Overdue",
+          count: actions.counts.overdue,
+          view: "my-work",
+          query: { overdue: "true" },
+        },
+        {
+          key: "pending",
+          label: "Pending approvals",
+          count: actions.counts.pendingApprovals,
+          view: "approval-queue",
+          query: {},
+        },
+        {
+          key: "returned",
+          label: "Returned",
+          count: actions.counts.returned,
+          view: "my-work",
+          query: { attention: "returned" },
+        },
+        {
+          key: "failed",
+          label: "Failed actions",
+          count: actions.counts.failedTaskActions,
+          view: "my-work",
+          query: { actionStatus: "Failed" },
+        },
+        {
+          key: "stale",
+          label: "Stale metrics",
+          count: actions.counts.staleMetrics,
+          view: "project-list",
+          query: { stale: "true" },
+        },
+      ]
+    : [];
+  return (
+    <>
+      <AppButton
+        variant="subtle"
+        text={`Action Center${total ? ` (${total})` : ""}`}
+        disabled={!services}
+        onClick={() => {
+          setOpen(true);
+          load();
+        }}
+      />
+      <Panel
+        isOpen={open}
+        type={PanelType.medium}
+        headerText="Action Center"
+        onDismiss={() => setOpen(false)}
+        closeButtonAriaLabel="Close Action Center"
+      >
+        {loading ? <p>Loading actions…</p> : null}
+        {!loading && !items.some((item) => item.count > 0) ? (
+          <p>
+            No assigned, overdue, pending, returned, failed, or stale records
+            require attention.
+          </p>
+        ) : null}
+        <ul>
+          {items
+            .filter((item) => item.count > 0)
+            .map((item) => (
+              <li key={item.key}>
+                <AppButton
+                  variant="subtle"
+                  text={`${item.label} (${item.count})`}
+                  onClick={() => go(item.view, item.query)}
+                />
+              </li>
+            ))}
+        </ul>
+      </Panel>
+    </>
+  );
+};
+
 /** Shared application title, route context, identity, and future Action Center entry point. */
 export const AppHeader = ({
   title,
@@ -157,12 +287,8 @@ export const AppHeader = ({
       {breadcrumbs.length ? <Breadcrumbs items={breadcrumbs} /> : null}
     </div>
     <div className={styles.headerUser}>
-      <AppButton
-        variant="subtle"
-        text="Action Center"
-        disabled
-        title="Available in a later feature stage"
-      />
+      <span className={styles.headerVersion}>v{PMO_APPLICATION_VERSION}</span>
+      <ActionCenterLauncher />
       <AvatarName name={userName} />
     </div>
   </header>

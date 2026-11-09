@@ -17,6 +17,7 @@ import type {
 import { calculateRequiredDailyHours } from "./DomainRules";
 import type { IPmoResolvedUserContext } from "./UserCapabilityService";
 import { hasCapability } from "./UserCapabilityService";
+import type { UserCapabilityService } from "./UserCapabilityService";
 
 export type ActionCenterCategory =
   | "awaitingAcceptance"
@@ -250,5 +251,22 @@ export class ActionCenterService {
       continuation = page.continuation;
     } while (continuation);
     return values;
+  }
+}
+
+/** Resolves the signed-in actor once and exposes the Stage 04 service to React. */
+export class CurrentUserActionCenterService {
+  public constructor(
+    private readonly actions: ActionCenterService,
+    private readonly capabilities: UserCapabilityService,
+  ) {}
+
+  public async getActions(
+    options: IActionCenterOptions = {},
+  ): Promise<IActionCenterResult> {
+    return this.actions.getActions(
+      await this.capabilities.resolveCurrent(),
+      options,
+    );
   }
 }

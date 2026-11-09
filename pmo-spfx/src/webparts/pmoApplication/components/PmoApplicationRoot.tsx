@@ -27,6 +27,8 @@ import {
   ProjectCostsRepository,
   ProjectStatusReportsRepository,
   EmployeeRatesRepository,
+  ImportBatchesRepository,
+  ProjectDocumentsRepository,
 } from "../services/repositories";
 import {
   ConfigurationManagementService,
@@ -48,6 +50,13 @@ import {
   ProjectStatusReportService,
   ClosureReadinessService,
   FinancialManagementService,
+  ActionCenterService,
+  CurrentUserActionCenterService,
+  CurrentUserMetricsService,
+  ReportService,
+  ProjectDocumentService,
+  ExcelImportService,
+  SupportDiagnosticsService,
 } from "../services/domain";
 import type { ISharePointClient } from "../services/sharepoint/SharePointClient";
 import { parseConfigNumber } from "../validation/configuration";
@@ -59,6 +68,7 @@ import {
   AccessDeniedPage,
   AppShell,
   ContentContainer,
+  NotFoundPage,
   PageHeader,
 } from "./layout";
 import { SummaryCard } from "./composites";
@@ -98,7 +108,11 @@ import {
   MyLearningPage,
   LEARNING_ROUTES,
 } from "../features/learning";
-import { usePmoRoute } from "../routing/pmoRoutes";
+import {
+  canOpenPmoRoute,
+  isKnownPmoRoute,
+  usePmoRoute,
+} from "../routing/pmoRoutes";
 import {
   ApprovalDashboardPage,
   ApprovalDetailPage,
@@ -133,6 +147,9 @@ import {
   ProjectFinancialsPage,
   FINANCE_ROUTES,
 } from "../features/finance";
+import { RoleHomePage } from "../features/home";
+import { ReportsPage } from "../features/reports";
+import { SupportDiagnosticsPage } from "../features/support";
 
 export interface IPmoApplicationRootProps {
   readonly userDisplayName: string;
@@ -181,8 +198,38 @@ const PmoApplicationContent = ({
 };
 
 function PmoRouteContent(): React.ReactElement {
-  const { route, back } = usePmoRoute();
+  const { route, back, navigate } = usePmoRoute();
   const user = React.useContext(PmoApplicationContext);
+  const services = React.useContext(PmoServicesContext);
+  if (!isKnownPmoRoute(route.view)) {
+    return (
+      <NotFoundPage
+        onHome={() =>
+          navigate({ view: "home", parameters: {}, query: { view: "home" } })
+        }
+      />
+    );
+  }
+  if (!canOpenPmoRoute(user?.capabilities ?? [], route.view)) {
+    return <AccessDeniedPage onBack={back} />;
+  }
+  if (route.view === "home") {
+    return services ? <RoleHomePage /> : <PmoFoundationMessage />;
+  }
+  if (route.view === "reports") {
+    return services ? <ReportsPage /> : <PmoFoundationMessage />;
+  }
+  if (route.view === "support-diagnostics") {
+    return services ? <SupportDiagnosticsPage /> : <PmoFoundationMessage />;
+  }
+  if (route.view === "portfolio") {
+    return services &&
+      (user?.capabilities.indexOf("portfolio.view") ?? -1) >= 0 ? (
+      <RoleHomePage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
   if (route.view === FINANCE_ROUTES.dashboard) {
     return (user?.capabilities.indexOf("finance.view") ?? -1) >= 0 ? (
       <FinanceDashboardPage />
@@ -471,7 +518,13 @@ function PmoRouteContent(): React.ReactElement {
       <AccessDeniedPage onBack={back} />
     );
   }
-  return <PmoFoundationMessage />;
+  return (
+    <NotFoundPage
+      onHome={() =>
+        navigate({ view: "home", parameters: {}, query: { view: "home" } })
+      }
+    />
+  );
 }
 
 const createFeatureServices = (
@@ -496,6 +549,8 @@ const createFeatureServices = (
   const projectCostsRepository = new ProjectCostsRepository(client);
   const employeeRatesRepository = new EmployeeRatesRepository(client);
   const statusReportsRepository = new ProjectStatusReportsRepository(client);
+  const importBatchesRepository = new ImportBatchesRepository(client);
+  const projectDocumentsRepository = new ProjectDocumentsRepository(client);
   const capabilities = new UserCapabilityService(
     client,
     employeesRepository,
@@ -533,6 +588,69 @@ const createFeatureServices = (
     risksIssuesRepository,
     statusReportsRepository,
   );
+  const resources = new ResourceManagementService(
+    employeesRepository,
+    membersRepository,
+    capabilities,
+  );
+  const finance = new FinancialManagementService(
+    employeeRatesRepository,
+    projectCostsRepository,
+    financialsRepository,
+    timeRepository,
+    projectsRepository,
+    capabilities,
+    async () => {
+      const configured = (await settings.cache.getActive()).find(
+        (setting) => setting.key === "PersonDayHours",
+      );
+      return parseConfigNumber(configured?.value ?? "") ?? 8;
+    },
+    async () => {
+      const configured = (await settings.cache.getActive()).find(
+        (setting) => setting.key === "ApprovedMarginThresholdPercent",
+      );
+      return parseConfigNumber(configured?.value ?? "") ?? 0;
+    },
+  );
+  const actionCenter = new CurrentUserActionCenterService(
+    new ActionCenterService(
+      workItemsRepository,
+      qualityRepository,
+      approvalsRepository,
+      timeRepository,
+      taskActionsRepository,
+      projectsRepository,
+    ),
+    capabilities,
+  );
+  const documents = new ProjectDocumentService(
+    projectDocumentsRepository,
+    capabilities,
+  );
+  const imports = new ExcelImportService(
+    client,
+    importBatchesRepository,
+    workItemsRepository,
+    membersRepository,
+    employeesRepository,
+    capabilities,
+  );
+  const reports = new ReportService(
+    projectsRepository,
+    workItemsRepository,
+    timeRepository,
+    changesRepository,
+    approvalsRepository,
+    qualityRepository,
+    statusReportsRepository,
+    financialsRepository,
+    membersRepository,
+    learningRepository,
+    resources,
+    capabilities,
+  );
+  const diagnostics = new SupportDiagnosticsService(client, capabilities);
   return {
     capabilities,
     services: {
@@ -585,11 +703,7 @@ const createFeatureServices = (
         settings,
         capabilities,
       ),
-      resources: new ResourceManagementService(
-        employeesRepository,
-        membersRepository,
-        capabilities,
-      ),
+      resources,
       learning: new LearningManagementService(
         learningRepository,
         employeesRepository,
@@ -629,26 +743,13 @@ const createFeatureServices = (
         capabilities,
       ),
       closureReadiness,
-      finance: new FinancialManagementService(
-        employeeRatesRepository,
-        projectCostsRepository,
-        financialsRepository,
-        timeRepository,
-        projectsRepository,
-        capabilities,
-        async () => {
-          const configured = (await settings.cache.getActive()).find(
-            (setting) => setting.key === "PersonDayHours",
-          );
-          return parseConfigNumber(configured?.value ?? "") ?? 8;
-        },
-        async () => {
-          const configured = (await settings.cache.getActive()).find(
-            (setting) => setting.key === "ApprovedMarginThresholdPercent",
-          );
-          return parseConfigNumber(configured?.value ?? "") ?? 0;
-        },
-      ),
+      finance,
+      actionCenter,
+      metrics: new CurrentUserMetricsService(metrics, capabilities),
+      reports,
+      documents,
+      imports,
+      diagnostics,
     },
   };
 };

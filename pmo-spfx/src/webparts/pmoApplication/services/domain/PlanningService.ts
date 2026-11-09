@@ -70,7 +70,10 @@ export class PlanningService {
       WorkItemsRepository,
       "getById" | "getByProject" | "create" | "update"
     >,
-    private readonly employees: Pick<EmployeesRepository, "getById">,
+    private readonly employees: Pick<
+      EmployeesRepository,
+      "getById" | "getActiveBySharePointUserId"
+    >,
     private readonly approvals: ApprovalRequestsRepository,
     private readonly capabilities: UserCapabilityService,
     private readonly now: () => Date = () => new Date(),
@@ -249,6 +252,16 @@ export class PlanningService {
         "Execution-plan approval requires a baseline-approved project.",
       );
     const actor = await this.capabilities.resolveCurrent();
+    const [employee, inApproverGroup] = await Promise.all([
+      this.employees.getActiveBySharePointUserId(approver.id),
+      this.capabilities.isUserInSecurityRole(approver.id, "approver"),
+    ]);
+    if (!employee?.isApprover || !inApproverGroup) {
+      throw new PmoBusinessError(
+        "authorization",
+        "The selected approver must be an active eligible employee and a member of the PMO Approvers SharePoint group.",
+      );
+    }
     const workflow = new ApprovalWorkflowService(
       this.approvals,
       {

@@ -691,4 +691,5 @@ export const mapProjectDocument: SharePointMapper<IPmoProjectDocument> = (
     F.projectDocuments.Confidentiality,
   ) as IPmoProjectDocument["confidentiality"],
   templateVersion: optionalString(wire, F.projectDocuments.TemplateVersion),
+  versionLabel: optionalString(wire, "OData__UIVersionString"),
 });

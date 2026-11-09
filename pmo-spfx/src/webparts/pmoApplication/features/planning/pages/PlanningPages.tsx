@@ -125,9 +125,8 @@ const WorkItemEditor = ({
   const save = async () => {
     setSaving(true);
     try {
-      item
-        ? await planning.update(project, item, draft)
-        : await planning.create(project, draft);
+      if (item) await planning.update(project, item, draft);
+      else await planning.create(project, draft);
       onSaved();
       onDismiss();
     } catch (error) {
@@ -489,9 +488,8 @@ export const ProjectPlanPage = (): React.ReactElement => {
                 onClick={() =>
                   setExpanded((current) => {
                     const next = new Set(current);
-                    current.has(item.id)
-                      ? next.delete(item.id)
-                      : next.add(item.id);
+                    if (current.has(item.id)) next.delete(item.id);
+                    else next.add(item.id);
                     return next;
                   })
                 }

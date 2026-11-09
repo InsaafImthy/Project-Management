@@ -7,6 +7,7 @@ import {
 } from "../primitives";
 import { AppButton } from "../primitives/Buttons";
 import { compositeStyles as styles } from "./compositeStyles";
+import { pmoDesignTokens } from "../../theme/pmoDesignTokens";
 
 /** Vertical dashboard composition shared by every module. */
 export const DashboardLayout = ({
@@ -102,6 +103,46 @@ export const ChartCard = ({
     )}
   </section>
 );
+
+export interface ISimpleBarChartItem {
+  readonly label: string;
+  readonly value: number;
+  readonly colorIndex?: number;
+}
+
+/** Lightweight CSS bar chart. Chart colors and category limits are centralized in tokens. */
+export const SimpleBarChart = ({
+  items,
+}: {
+  readonly items: readonly ISimpleBarChartItem[];
+}): React.ReactElement => {
+  const visible = items.slice(0, pmoDesignTokens.charts.maxCategories);
+  const maximum = Math.max(1, ...visible.map((item) => item.value));
+  return (
+    <div className={styles.chartBars}>
+      {visible.map((item, index) => (
+        <div className={styles.chartBarRow} key={item.label}>
+          <span>{item.label}</span>
+          <span className={styles.chartBarTrack}>
+            <span
+              className={styles.chartBarFill}
+              style={{
+                display: "block",
+                width: `${Math.max(0, (item.value / maximum) * 100)}%`,
+                background:
+                  pmoDesignTokens.charts.colors[
+                    (item.colorIndex ?? index) %
+                      pmoDesignTokens.charts.colors.length
+                  ],
+              }}
+            />
+          </span>
+          <strong>{item.value}</strong>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export interface IActionQueueItem {
   readonly key: string;

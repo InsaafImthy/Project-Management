@@ -8,12 +8,12 @@ import type {
 import type {
   IProjectDraft,
   IProjectMemberDraft,
-} from "../../features/projects/validation";
+} from "../../validation/projects";
 import {
   calculateOverlappingAllocation,
   validateProjectDraft,
   validateProjectMemberDraft,
-} from "../../features/projects/validation";
+} from "../../validation/projects";
 import type { IRepositoryPage } from "../repositories/contracts";
 import type {
   ApprovalRequestsRepository,
@@ -56,12 +56,14 @@ export const generateProjectCode = (id: number, createdOn: Date): string => {
 export interface IProjectListFilters {
   readonly status?: IPmoProject["status"];
   readonly projectManagerId?: number;
+  readonly managedByCurrentUser?: boolean;
   readonly customerName?: string;
   readonly overallHealth?: IPmoProject["overallHealth"];
   readonly atRisk?: boolean;
   readonly isActive?: boolean;
   readonly dateFrom?: Date;
   readonly dateTo?: Date;
+  readonly metricsCalculatedBefore?: Date;
   readonly search?: string;
 }
 
@@ -101,12 +103,22 @@ export class ProjectManagementService {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  public list(
+  public async list(
     filters: IProjectListFilters,
     continuation?: string,
     pageSize = 50,
   ): Promise<IRepositoryPage<IPmoProject>> {
-    return this.projects.getPage(filters, continuation, pageSize);
+    const { managedByCurrentUser, ...repositoryFilters } = filters;
+    if (!managedByCurrentUser) {
+      return this.projects.getPage(repositoryFilters, continuation, pageSize);
+    }
+    const actor = await this.capabilities.resolveCurrent();
+    assertCapability(actor, "projects.view");
+    return this.projects.getPage(
+      { ...repositoryFilters, projectManagerId: actor.sharePointUserId },
+      continuation,
+      pageSize,
+    );
   }
 
   public async get(projectId: number): Promise<IPmoProject> {
@@ -147,6 +159,22 @@ export class ProjectManagementService {
       endingSoon,
       managedByMe,
     };
+  }
+
+  public async getManagedProjects(): Promise<readonly IPmoProject[]> {
+    const actor = await this.capabilities.resolveCurrent();
+    assertCapability(actor, "projects.manage");
+    const values: IPmoProject[] = [];
+    let continuation: string | undefined;
+    do {
+      const page = await this.projects.getManagedBy(
+        actor.sharePointUserId,
+        continuation,
+      );
+      values.push(...page.items);
+      continuation = page.continuation;
+    } while (continuation);
+    return values;
   }
 
   public async createDraft(draft: IProjectDraft): Promise<IPmoProject> {
@@ -242,6 +270,7 @@ export class ProjectManagementService {
       project.projectManager.id,
       project.pmoOwner.id,
     );
+    await this.assertApprovalAuthority(approver);
     const workflow = new ApprovalWorkflowService(
       this.approvals,
       {
@@ -444,6 +473,7 @@ export class ProjectManagementService {
           "A configured closure approver is required.",
         );
       }
+      await this.assertApprovalAuthority(approver);
       const workflow = new ApprovalWorkflowService(
         this.approvals,
         {
@@ -519,6 +549,21 @@ export class ProjectManagementService {
           }
         : {}),
     };
+  }
+
+  private async assertApprovalAuthority(
+    approver: IApprovalWorkflowActor,
+  ): Promise<void> {
+    const [employee, inApproverGroup] = await Promise.all([
+      this.employees.getActiveBySharePointUserId(approver.id),
+      this.capabilities.isUserInSecurityRole(approver.id, "approver"),
+    ]);
+    if (!employee?.isApprover || !inApproverGroup) {
+      throw new PmoBusinessError(
+        "authorization",
+        "The selected approver must be an active eligible employee and a member of the PMO Approvers SharePoint group.",
+      );
+    }
   }
 
   private async assertProjectOwners(draft: IProjectDraft): Promise<void> {

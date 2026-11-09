@@ -463,6 +463,7 @@ export class ProjectsRepository extends SharePointRepository<IPmoProject> {
       readonly isActive?: boolean;
       readonly dateFrom?: Date;
       readonly dateTo?: Date;
+      readonly metricsCalculatedBefore?: Date;
       readonly search?: string;
     },
     continuation?: string,
@@ -502,6 +503,11 @@ export class ProjectsRepository extends SharePointRepository<IPmoProject> {
     if (filters.dateTo) {
       clauses.push(
         `${F.projects.CurrentApprovedEnd} le datetime'${odataDate(filters.dateTo)}'`,
+      );
+    }
+    if (filters.metricsCalculatedBefore) {
+      clauses.push(
+        `(${F.projects.MetricsCalculatedOn} eq null or ${F.projects.MetricsCalculatedOn} lt datetime'${odataDate(filters.metricsCalculatedBefore)}')`,
       );
     }
     const search = filters.search?.trim();
@@ -1459,7 +1465,7 @@ export class ProjectDocumentsRepository extends SharePointRepository<IPmoProject
     super(
       client,
       PMO_LIBRARIES.projectDocuments,
-      allFields(F.projectDocuments),
+      allFields(F.projectDocuments).concat("OData__UIVersionString"),
       mapProjectDocument,
     );
   }

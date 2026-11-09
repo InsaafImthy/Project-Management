@@ -1,7 +1,6 @@
 import { PMO_CONTAINERS, PMO_FIELDS } from "../config/sharePointSchema";
 import type { IPmoEmployee } from "../models/domain";
 import {
-  PMO_GROUPS,
   UserCapabilityService,
   canOpenRoute,
   hasCapability,
@@ -83,7 +82,7 @@ describe("UserCapabilityService", () => {
     expect(hasCapability(user, "work.act-own")).toBe(true);
   });
 
-  it("grants the administrator override without group or employee membership", async () => {
+  it("does not grant an identity-based administrator override", async () => {
     const client = {
       getJson: async (url: string): Promise<unknown> =>
         url.indexOf("groups") >= 0
@@ -105,22 +104,18 @@ describe("UserCapabilityService", () => {
 
     const user = await service.resolveCurrent();
 
-    expect(getActiveByEmail).not.toHaveBeenCalled();
-    expect(user.employee).toBeUndefined();
+    expect(getActiveByEmail).toHaveBeenCalledWith(
+      "insaaf.imthiyas@aufaittechnologies.com",
+    );
+    expect(user.employee).toBe(employee);
     expect(user.email).toBe("insaaf.imthiyas@aufaittechnologies.com");
-    expect(user.securityRoles.size).toBe(Object.keys(PMO_GROUPS).length);
-    expect(user.eligibility).toEqual({
-      isProjectManager: true,
-      isQa: true,
-      isApprover: true,
-      isResourceManager: true,
-    });
-    expect(hasCapability(user, "configuration.manage")).toBe(true);
-    expect(hasCapability(user, "finance.manage")).toBe(true);
-    expect(hasCapability(user, "work.act-own")).toBe(true);
-    expect(hasCapability(user, "time.edit-own")).toBe(true);
-    expect(canOpenRoute(user, "settings")).toBe(true);
-    expect(canOpenRoute(user, "employee-rates")).toBe(true);
-    await expect(service.isUserInSecurityRole(42, "owner")).resolves.toBe(true);
+    expect(user.securityRoles.size).toBe(0);
+    expect(user.eligibility.isQa).toBe(true);
+    expect(user.capabilities.size).toBe(0);
+    expect(hasCapability(user, "configuration.manage")).toBe(false);
+    expect(hasCapability(user, "finance.manage")).toBe(false);
+    expect(hasCapability(user, "work.act-own")).toBe(false);
+    expect(canOpenRoute(user, "settings")).toBe(false);
+    expect(canOpenRoute(user, "employee-rates")).toBe(false);
   });
 });

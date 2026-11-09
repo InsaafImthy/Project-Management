@@ -16,6 +16,7 @@ import {
   KpiGrid,
   ProgressSummary,
   QuickActions,
+  ReasonDialog,
   SummaryCard,
   type IDataTableColumn,
 } from "../../../components/composites";
@@ -59,6 +60,9 @@ import {
   validateProjectMemberDraft,
 } from "../validation";
 import { PROJECT_ROUTES } from "../routes";
+import { ProjectDocumentsPanel } from "../../documents";
+import { ProjectImportPanel } from "../../imports";
+import { downloadReportCsv } from "../../../utils/reportExport";
 
 const asDateInput = (date?: Date): string =>
   date?.toISOString().slice(0, 10) ?? "";
@@ -123,8 +127,17 @@ const filtersFromQuery = (
       : undefined,
   atRisk: query.atRisk === "true" ? true : undefined,
   projectManagerId: query.manager ? Number(query.manager) : undefined,
+  managedByCurrentUser: query.managedByMe === "true" ? true : undefined,
   customerName: query.customer || undefined,
   isActive: query.active === "false" ? false : true,
+  dateTo:
+    query.endingSoon === "true"
+      ? new Date(Date.now() + 30 * 86400000)
+      : undefined,
+  metricsCalculatedBefore:
+    query.stale === "true"
+      ? new Date(Date.now() - 24 * 60 * 60 * 1000)
+      : undefined,
   search: query.search || undefined,
 });
 
@@ -227,9 +240,7 @@ export const ProjectDashboardPage = (): React.ReactElement => {
             <KpiCard
               title="Managed by me"
               value={summary.managedByMe}
-              onDrillDown={() =>
-                drill({ manager: String(user.employeeId ?? "") })
-              }
+              onDrillDown={() => drill({ managedByMe: "true" })}
             />
           </KpiGrid>
         </DashboardSection>
@@ -320,32 +331,35 @@ export const ProjectListPage = (): React.ReactElement => {
       },
     });
   const exportRows = (): void => {
-    const header = ["Code", "Name", "Status", "Manager", "End", "Health"];
-    const rows = page.items.map((p) => [
-      p.projectCode ?? "",
-      p.title,
-      p.status,
-      p.projectManager.displayName,
-      asDateInput(p.currentApprovedEnd),
-      p.overallHealth,
-    ]);
-    const blob = new Blob(
+    downloadReportCsv(
+      {
+        reportName: "Project list",
+        asOf: new Date(),
+        filters: {
+          status: filters.status,
+          health: filters.overallHealth,
+          manager: filters.projectManagerId,
+          customer: filters.customerName,
+          search: filters.search,
+        },
+        confidentiality: "Internal",
+      },
       [
-        [header, ...rows]
-          .map((row) =>
-            row
-              .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-              .join(","),
-          )
-          .join("\n"),
+        { header: "Code", value: (project) => project.projectCode },
+        { header: "Name", value: (project) => project.title },
+        { header: "Status", value: (project) => project.status },
+        {
+          header: "Manager",
+          value: (project) => project.projectManager.displayName,
+        },
+        {
+          header: "End",
+          value: (project) => asDateInput(project.currentApprovedEnd),
+        },
+        { header: "Health", value: (project) => project.overallHealth },
       ],
-      { type: "text/csv" },
+      page.items,
     );
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "projects.csv";
-    link.click();
-    URL.revokeObjectURL(link.href);
   };
   const columns: readonly IDataTableColumn<IPmoProject>[] = [
     {
@@ -835,6 +849,7 @@ const TeamPanel = ({
   );
   const [panelOpen, setPanelOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<IPmoProjectMember>();
+  const [ending, setEnding] = React.useState<IPmoProjectMember>();
   const interactions = usePmoInteractions();
   const blank = (): IProjectMemberDraft => ({
     projectRole: "Contributor",
@@ -908,10 +923,13 @@ const TeamPanel = ({
       destructive: true,
     });
     if (!confirmed) return;
-    const reason = window.prompt("Reason for ending membership");
-    if (!reason) return;
+    setEnding(member);
+  };
+  const confirmEnd = async (reason: string): Promise<void> => {
+    if (!ending) return;
     try {
-      await projects.endMember(member, reason);
+      await projects.endMember(ending, reason);
+      setEnding(undefined);
       load();
       onChanged();
     } catch (error) {
@@ -1044,6 +1062,14 @@ const TeamPanel = ({
           onChange={(value) => setDraft({ ...draft, responsibility: value })}
         />
       </FormPanel>
+      <ReasonDialog
+        open={Boolean(ending)}
+        title="End project membership"
+        actionLabel="End membership"
+        minimumLength={3}
+        onSubmit={(reason) => void confirmEnd(reason)}
+        onDismiss={() => setEnding(undefined)}
+      />
     </Stack>
   );
 };
@@ -1154,7 +1180,7 @@ const ProjectFinancialsTab = ({
 
 export const ProjectWorkspacePage = (): React.ReactElement => {
   const { route, navigate } = usePmoRoute();
-  const { projects, risks, quality, statusReports, closureReadiness } =
+  const { projects, risks, quality, statusReports, closureReadiness, metrics } =
     usePmoServices();
   const user = usePmoCurrentUser();
   const interactions = usePmoInteractions();
@@ -1168,6 +1194,8 @@ export const ProjectWorkspacePage = (): React.ReactElement => {
   const [riskCount, setRiskCount] = React.useState(0);
   const [qualityCount, setQualityCount] = React.useState(0);
   const [reportCount, setReportCount] = React.useState(0);
+  const [reasonStatus, setReasonStatus] =
+    React.useState<IPmoProject["status"]>();
   const [readiness, setReadiness] =
     React.useState<Awaited<ReturnType<typeof closureReadiness.check>>>();
   const load = () => {
@@ -1241,19 +1269,43 @@ export const ProjectWorkspacePage = (): React.ReactElement => {
       });
     }
   };
-  const status = async (target: IPmoProject["status"]) => {
-    const reason =
-      target === "On Hold" || target === "Cancelled"
-        ? (window.prompt(`${target} reason`) ?? "")
-        : undefined;
+  const status = async (
+    target: IPmoProject["status"],
+    reason?: string,
+  ): Promise<void> => {
+    if ((target === "On Hold" || target === "Cancelled") && !reason) {
+      setReasonStatus(target);
+      return;
+    }
     try {
       await projects.transitionStatus(project, target, reason, workflowActor);
+      setReasonStatus(undefined);
       interactions.publishMessage({
         tone: "success",
         text:
           target === "Pending Closure"
             ? "Closure approval submitted."
             : `Project ${target.toLowerCase()}.`,
+      });
+      load();
+    } catch (caught) {
+      interactions.publishMessage({
+        tone: "danger",
+        text: toUserSafeErrorMessage(caught),
+      });
+    }
+  };
+  const refreshMetrics = async (): Promise<void> => {
+    try {
+      const result = await metrics.refreshProject(
+        project.id,
+        user.capabilities.indexOf("finance.view") >= 0,
+      );
+      interactions.publishMessage({
+        tone: result.warnings.length ? "warning" : "success",
+        text: result.warnings.length
+          ? `Metrics refreshed with warnings: ${result.warnings.join(" ")}`
+          : "Project metrics refreshed.",
       });
       load();
     } catch (caught) {
@@ -1285,6 +1337,12 @@ export const ProjectWorkspacePage = (): React.ReactElement => {
             ]}
             commands={
               <Stack direction="horizontal" gap="sm" wrap>
+                {canManage ? (
+                  <AppButton
+                    text="Refresh metrics"
+                    onClick={() => void refreshMetrics()}
+                  />
+                ) : null}
                 {canManage &&
                 (project.status === "Draft" ||
                   project.status === "Active" ||
@@ -1536,7 +1594,33 @@ export const ProjectWorkspacePage = (): React.ReactElement => {
               </SummaryCard>
             ),
           },
+          {
+            key: "documents",
+            label: "Documents",
+            content: <ProjectDocumentsPanel project={project} />,
+          },
+          ...(canManage
+            ? [
+                {
+                  key: "import",
+                  label: "Excel task import",
+                  content: <ProjectImportPanel project={project} />,
+                },
+              ]
+            : []),
         ]}
+      />
+      <ReasonDialog
+        open={Boolean(reasonStatus)}
+        title={`${reasonStatus ?? "Project status"} reason`}
+        actionLabel={
+          reasonStatus === "Cancelled" ? "Cancel project" : "Continue"
+        }
+        minimumLength={3}
+        onSubmit={(reason) =>
+          reasonStatus ? void status(reasonStatus, reason) : undefined
+        }
+        onDismiss={() => setReasonStatus(undefined)}
       />
     </ContentContainer>
   );

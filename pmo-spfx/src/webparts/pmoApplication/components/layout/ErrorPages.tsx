@@ -50,12 +50,14 @@ export const NotFoundPage = ({
 
 export const FatalErrorPage = ({
   onRetry,
+  message = "Refresh the page and contact support if the problem continues.",
 }: {
   readonly onRetry?: () => void;
+  readonly message?: string;
 }): React.ReactElement => (
   <StatePage
     title="The application could not be displayed"
-    message="Refresh the page and contact support if the problem continues."
+    message={message}
     actionLabel={onRetry ? "Try again" : undefined}
     onAction={onRetry}
   />

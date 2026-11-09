@@ -17,6 +17,12 @@ import type {
   ProjectStatusReportService,
   ClosureReadinessService,
   FinancialManagementService,
+  CurrentUserActionCenterService,
+  CurrentUserMetricsService,
+  ReportService,
+  ProjectDocumentService,
+  ExcelImportService,
+  SupportDiagnosticsService,
 } from "../services/domain";
 
 export interface IPmoFeatureServices {
@@ -37,6 +43,12 @@ export interface IPmoFeatureServices {
   readonly statusReports: ProjectStatusReportService;
   readonly closureReadiness: ClosureReadinessService;
   readonly finance: FinancialManagementService;
+  readonly actionCenter: CurrentUserActionCenterService;
+  readonly metrics: CurrentUserMetricsService;
+  readonly reports: ReportService;
+  readonly documents: ProjectDocumentService;
+  readonly imports: ExcelImportService;
+  readonly diagnostics: SupportDiagnosticsService;
 }
 
 export const PmoServicesContext = React.createContext<

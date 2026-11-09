@@ -1,8 +1,12 @@
-export { ActionCenterService } from "./ActionCenterService";
+export * from "./ActionCenterService";
 export { ApprovalWorkflowService } from "./ApprovalWorkflowService";
 export { ChangeManagementService } from "./ChangeManagementService";
 export * from "./DomainRules";
-export { MetricsService } from "./MetricsService";
+export * from "./MetricsService";
+export * from "./ReportService";
+export * from "./SupportDiagnosticsService";
+export * from "./ProjectDocumentService";
+export * from "./ExcelImportService";
 export * from "./FinancialManagementService";
 export * from "./QualityGovernanceService";
 export * from "./RiskManagementService";

@@ -13,7 +13,10 @@ import type {
   TimeEntriesRepository,
   WorkItemsRepository,
 } from "../repositories/repositories";
-import type { IPmoResolvedUserContext } from "./UserCapabilityService";
+import type {
+  IPmoResolvedUserContext,
+  UserCapabilityService,
+} from "./UserCapabilityService";
 import {
   canReadRestrictedFinancials,
   hasCapability,
@@ -65,6 +68,7 @@ export class MetricsService {
     if (
       !hasCapability(actor, "projects.manage") &&
       !hasCapability(actor, "approvals.decide") &&
+      !hasCapability(actor, "portfolio.view") &&
       !actor.securityRoles.has("owner")
     ) {
       throw new Error(
@@ -163,6 +167,7 @@ export class MetricsService {
     projectIds: readonly number[],
     actor: IPmoResolvedUserContext,
     includeFinancials = false,
+    onProgress?: (completed: number, total: number) => void,
   ): Promise<readonly IProjectMetricsResult[]> {
     if (
       !actor.securityRoles.has("owner") &&
@@ -178,12 +183,27 @@ export class MetricsService {
         "Refresh at most 50 explicitly selected projects at once.",
       );
     }
-    const results: IProjectMetricsResult[] = [];
-    for (const projectId of projectIds) {
-      results.push(
-        await this.refreshProject(projectId, actor, includeFinancials),
-      );
-    }
+    const results: IProjectMetricsResult[] = new Array(projectIds.length);
+    let nextIndex = 0;
+    let completed = 0;
+    const worker = async (): Promise<void> => {
+      while (nextIndex < projectIds.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        const projectId = projectIds[index];
+        if (projectId === undefined) continue;
+        results[index] = await this.refreshProject(
+          projectId,
+          actor,
+          includeFinancials,
+        );
+        completed += 1;
+        onProgress?.(completed, projectIds.length);
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(3, projectIds.length) }, () => worker()),
+    );
     return results;
   }
 
@@ -282,6 +302,37 @@ export class MetricsService {
         [F.projectFinancials.CalculatedOn]: this.now().toISOString(),
       },
       summary.etag,
+    );
+  }
+}
+
+export class CurrentUserMetricsService {
+  public constructor(
+    private readonly metrics: MetricsService,
+    private readonly capabilities: UserCapabilityService,
+  ) {}
+
+  public async refreshProject(
+    projectId: number,
+    includeFinancials = false,
+  ): Promise<IProjectMetricsResult> {
+    return this.metrics.refreshProject(
+      projectId,
+      await this.capabilities.resolveCurrent(),
+      includeFinancials,
+    );
+  }
+
+  public async refreshPortfolio(
+    projectIds: readonly number[],
+    includeFinancials = false,
+    onProgress?: (completed: number, total: number) => void,
+  ): Promise<readonly IProjectMetricsResult[]> {
+    return this.metrics.refreshProjects(
+      projectIds,
+      await this.capabilities.resolveCurrent(),
+      includeFinancials,
+      onProgress,
     );
   }
 }

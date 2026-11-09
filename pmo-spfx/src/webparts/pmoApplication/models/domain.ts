@@ -454,4 +454,5 @@ export interface IPmoProjectDocument extends IPmoEntity {
     typeof PMO_CHOICES.projectDocuments.confidentiality
   >;
   readonly templateVersion?: string;
+  readonly versionLabel?: string;
 }

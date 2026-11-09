@@ -234,6 +234,29 @@ export const compositeStyles = mergeStyleSets({
     background: t.colors.brand.primary,
     height: "100%",
   },
+  chartBars: {
+    display: "flex",
+    flexDirection: "column",
+    gap: t.spacing.sm,
+    margin: `${t.spacing.md}px 0`,
+  },
+  chartBarRow: {
+    alignItems: "center",
+    display: "grid",
+    gap: t.spacing.sm,
+    gridTemplateColumns: "minmax(100px, 1fr) minmax(120px, 3fr) auto",
+  },
+  chartBarTrack: {
+    background: t.colors.neutral.subtle,
+    borderRadius: t.radii.pill,
+    height: t.spacing.md,
+    overflow: "hidden",
+  },
+  chartBarFill: {
+    borderRadius: t.radii.pill,
+    height: "100%",
+    minWidth: t.spacing.xxs,
+  },
   filterBar: {
     alignItems: "end",
     background: t.colors.neutral.surface,

@@ -84,6 +84,10 @@ export interface IPmoDesignTokens {
     readonly easing: string;
     readonly reducedMotionMediaQuery: string;
   };
+  readonly charts: {
+    readonly colors: readonly string[];
+    readonly maxCategories: number;
+  };
 }
 
 /**
@@ -180,6 +184,17 @@ export const createPmoDesignTokens = (theme: ITheme): IPmoDesignTokens => ({
     durations: { instant: 0, fast: 100, standard: 200, slow: 320 },
     easing: "cubic-bezier(0.33, 0, 0.2, 1)",
     reducedMotionMediaQuery: "(prefers-reduced-motion: reduce)",
+  },
+  charts: {
+    colors: [
+      theme.palette.themePrimary,
+      theme.palette.green,
+      theme.palette.yellowDark,
+      theme.palette.red,
+      theme.palette.purple,
+      theme.palette.teal,
+    ],
+    maxCategories: 8,
   },
 });
 
