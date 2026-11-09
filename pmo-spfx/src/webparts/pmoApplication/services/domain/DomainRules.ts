@@ -1,5 +1,6 @@
 import type {
   IPmoChangeRequest,
+  IPmoProjectMember,
   IPmoQualityItem,
   IPmoTimeEntry,
   IPmoWorkItem,
@@ -410,6 +411,8 @@ export interface ITimeEntryValidationContext {
   readonly maximumDailyHours: number;
   readonly existingDayHours: number;
   readonly isAuthorizedContributor: boolean;
+  /** Overtime is warned about by the caller; it is not silently rejected. */
+  readonly allowOvertime?: boolean;
 }
 
 export const validateTimeEntry = (
@@ -427,7 +430,10 @@ export const validateTimeEntry = (
 ): readonly string[] => {
   const errors: string[] = [];
   if (entry.hours <= 0) errors.push("Hours must be greater than zero.");
-  if (context.existingDayHours + entry.hours > context.maximumDailyHours) {
+  if (
+    !context.allowOvertime &&
+    context.existingDayHours + entry.hours > context.maximumDailyHours
+  ) {
     errors.push("Daily hours exceed the configured maximum.");
   }
   const workDay = new Date(entry.workDate);
@@ -446,6 +452,12 @@ export const validateTimeEntry = (
     errors.push("Project support time requires a project.");
   }
   if (
+    entry.workCategory === "Approved Learning" &&
+    (entry.projectId !== undefined || entry.workItemId !== undefined)
+  ) {
+    errors.push("Approved learning time must not be linked to project work.");
+  }
+  if (
     (entry.workCategory === "Project Task" ||
       entry.workCategory === "Project Support") &&
     !context.isAuthorizedContributor
@@ -456,6 +468,107 @@ export const validateTimeEntry = (
     errors.push("Locked time entries require a correction request.");
   return errors;
 };
+
+export const hasExcessDailyHours = (
+  existingDayHours: number,
+  hours: number,
+  maximumDailyHours: number,
+): boolean => existingDayHours + hours > maximumDailyHours;
+
+export const rangesOverlap = (
+  firstStart: Date,
+  firstEnd: Date,
+  secondStart: Date,
+  secondEnd: Date,
+): boolean => firstStart <= secondEnd && secondStart <= firstEnd;
+
+export const allocationForDate = (
+  allocations: readonly Pick<
+    IPmoProjectMember,
+    | "allocationPercent"
+    | "allocationStart"
+    | "allocationEnd"
+    | "isActive"
+    | "membershipStatus"
+  >[],
+  date: Date,
+): number =>
+  allocations
+    .filter(
+      (allocation) =>
+        allocation.isActive &&
+        allocation.membershipStatus === "Active" &&
+        allocation.allocationStart <= date &&
+        allocation.allocationEnd >= date,
+    )
+    .reduce((total, allocation) => total + allocation.allocationPercent, 0);
+
+const LEARNING_TRANSITIONS: Readonly<
+  Record<
+    | "Draft"
+    | "Assigned"
+    | "In Progress"
+    | "Submitted"
+    | "Validated"
+    | "Partially Met"
+    | "Not Met"
+    | "Withdrawn",
+    readonly string[]
+  >
+> = {
+  Draft: ["Assigned", "Withdrawn"],
+  Assigned: ["In Progress", "Submitted", "Withdrawn"],
+  "In Progress": ["Submitted", "Withdrawn"],
+  Submitted: ["Validated", "Partially Met", "Not Met"],
+  Validated: [],
+  "Partially Met": [],
+  "Not Met": [],
+  Withdrawn: [],
+};
+
+export const canTransitionLearningStatus = (
+  from: keyof typeof LEARNING_TRANSITIONS,
+  to: string,
+): boolean => LEARNING_TRANSITIONS[from].indexOf(to) >= 0;
+
+export const validateLearningValidation = (
+  status: keyof typeof LEARNING_TRANSITIONS,
+  result: "Passed" | "Partially Met" | "Not Met",
+  comment: string,
+): readonly string[] => {
+  const target = result === "Passed" ? "Validated" : result;
+  const errors: string[] = [];
+  if (!canTransitionLearningStatus(status, target))
+    errors.push(
+      `Learning assignment cannot transition from ${status} to ${target}.`,
+    );
+  if (!comment.trim()) errors.push("Validation comment is required.");
+  return errors;
+};
+
+export const appendValidatedSkill = (
+  existing: string | undefined,
+  skill: string,
+): string => {
+  const values = new Set(
+    (existing ?? "")
+      .split(";")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  values.add(skill.trim());
+  return Array.from(values).join("; ");
+};
+
+export const canViewEmployeeTime = (
+  actorEmployeeId: number | undefined,
+  targetEmployeeId: number,
+  isTimeApprover: boolean,
+  isProjectManagerForEntry: boolean,
+): boolean =>
+  actorEmployeeId === targetEmployeeId ||
+  isTimeApprover ||
+  isProjectManagerForEntry;
 
 export interface IPlanMeasureSet {
   readonly baseline: number;

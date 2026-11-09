@@ -87,6 +87,14 @@ export const PMO_NAVIGATION: readonly IPmoNavigationItem[] = [
     requiredCapabilities: ["time.view-own"],
   },
   {
+    key: "my-learning",
+    group: "My work",
+    label: "My Learning",
+    route: PMO_ROUTES.myLearning,
+    iconName: "Education",
+    requiredCapabilities: ["time.view-own"],
+  },
+  {
     key: "projects",
     group: "Delivery",
     label: "Projects",
@@ -121,9 +129,17 @@ export const PMO_NAVIGATION: readonly IPmoNavigationItem[] = [
   {
     key: "resources",
     group: "Operations",
+    label: "Resources",
+    route: PMO_ROUTES.resources,
+    iconName: "People",
+    requiredCapabilities: ["resources.view"],
+  },
+  {
+    key: "employees",
+    group: "Operations",
     label: "Employees",
     route: PMO_ROUTES.employees,
-    iconName: "People",
+    iconName: "Contact",
     requiredCapabilities: ["resources.view"],
   },
   {

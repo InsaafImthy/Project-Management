@@ -22,6 +22,7 @@ import {
   RisksIssuesRepository,
   TaskActionsRepository,
   TimeEntriesRepository,
+  LearningAssignmentsRepository,
   WorkItemsRepository,
 } from "../services/repositories";
 import {
@@ -34,6 +35,9 @@ import {
   TaskWorkflowService,
   WorkManagementService,
   UserCapabilityService,
+  TimeManagementService,
+  ResourceManagementService,
+  LearningManagementService,
 } from "../services/domain";
 import type { ISharePointClient } from "../services/sharepoint/SharePointClient";
 import { parseConfigNumber } from "../validation/configuration";
@@ -77,6 +81,13 @@ import {
   TaskDetailPage,
   WORK_ROUTES,
 } from "../features/work";
+import { MyTimePage, TimeReviewPage, TIME_ROUTES } from "../features/time";
+import { ResourceDashboardPage, RESOURCE_ROUTES } from "../features/resources";
+import {
+  LearningManagerPage,
+  MyLearningPage,
+  LEARNING_ROUTES,
+} from "../features/learning";
 import { usePmoRoute } from "../routing/pmoRoutes";
 
 export interface IPmoApplicationRootProps {
@@ -128,6 +139,46 @@ const PmoApplicationContent = ({
 function PmoRouteContent(): React.ReactElement {
   const { route, back } = usePmoRoute();
   const user = React.useContext(PmoApplicationContext);
+  if (
+    route.view === TIME_ROUTES.dashboard ||
+    route.view === TIME_ROUTES.daily ||
+    route.view === TIME_ROUTES.weekly
+  ) {
+    return (user?.capabilities.indexOf("time.view-own") ?? -1) >= 0 ? (
+      <MyTimePage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === TIME_ROUTES.review) {
+    return (user?.capabilities.indexOf("projects.manage") ?? -1) >= 0 ||
+      (user?.capabilities.indexOf("time.review") ?? -1) >= 0 ? (
+      <TimeReviewPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === RESOURCE_ROUTES.dashboard) {
+    return (user?.capabilities.indexOf("resources.view") ?? -1) >= 0 ? (
+      <ResourceDashboardPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === LEARNING_ROUTES.mine) {
+    return (user?.capabilities.indexOf("time.view-own") ?? -1) >= 0 ? (
+      <MyLearningPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === LEARNING_ROUTES.manage) {
+    return (user?.capabilities.indexOf("resources.manage") ?? -1) >= 0 ? (
+      <LearningManagerPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
   if (route.view === PLANNING_ROUTES.dashboard) {
     return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
       <PlanningDashboardPage />
@@ -260,6 +311,7 @@ const createFeatureServices = (
   const risksIssuesRepository = new RisksIssuesRepository(client);
   const timeRepository = new TimeEntriesRepository(client);
   const taskActionsRepository = new TaskActionsRepository(client);
+  const learningRepository = new LearningAssignmentsRepository(client);
   const capabilities = new UserCapabilityService(
     client,
     employeesRepository,
@@ -322,6 +374,25 @@ const createFeatureServices = (
           risksIssuesRepository,
         ),
         new ReviewWorkflowService(workItemsRepository, capabilities),
+        capabilities,
+      ),
+      time: new TimeManagementService(
+        timeRepository,
+        workItemsRepository,
+        membersRepository,
+        learningRepository,
+        settings,
+        capabilities,
+      ),
+      resources: new ResourceManagementService(
+        employeesRepository,
+        membersRepository,
+        capabilities,
+      ),
+      learning: new LearningManagementService(
+        learningRepository,
+        employeesRepository,
+        timeRepository,
         capabilities,
       ),
     },

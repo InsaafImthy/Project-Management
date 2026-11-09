@@ -6,6 +6,9 @@ export { TaskWorkflowService } from "./TaskWorkflowService";
 export { PlanningService } from "./PlanningService";
 export { ReviewWorkflowService } from "./ReviewWorkflowService";
 export { WorkManagementService } from "./WorkManagementService";
+export { TimeManagementService } from "./TimeManagementService";
+export { ResourceManagementService } from "./ResourceManagementService";
+export { LearningManagementService } from "./LearningManagementService";
 export {
   ProjectManagementService,
   generateProjectCode,

@@ -26,6 +26,7 @@ export type PmoCapability =
   | "work.act-own"
   | "time.view-own"
   | "time.edit-own"
+  | "time.review"
   | "projects.view"
   | "projects.manage"
   | "quality.view"
@@ -85,11 +86,13 @@ const capabilitiesFor = (
     values.add("time.view-own");
     values.add("time.edit-own");
   }
+  if (roles.has("timeApprover")) values.add("time.review");
   if (roles.has("projectManager") && eligibility.isProjectManager) {
     values.add("projects.view");
     values.add("projects.manage");
     values.add("quality.view");
     values.add("resources.view");
+    values.add("time.review");
   }
   if (roles.has("qa") && eligibility.isQa) {
     values.add("quality.view");
@@ -120,6 +123,7 @@ const capabilitiesFor = (
     (
       [
         "work.view-own",
+        "time.review",
         "employees.view-own",
         "employees.manage",
         "projects.view",
@@ -239,11 +243,16 @@ const routeCapabilities: Readonly<Record<string, PmoCapability | undefined>> = {
   home: undefined,
   "my-work": "work.view-own",
   "my-time": "time.view-own",
+  "my-learning": "time.view-own",
+  "time-daily": "time.view-own",
+  "time-weekly": "time.view-own",
+  "time-review": "time.review",
   reviews: "projects.manage",
   projects: "projects.view",
   approvals: "approvals.view",
   quality: "quality.view",
   resources: "resources.view",
+  "learning-manage": "resources.manage",
   portfolio: "portfolio.view",
   "financial-summary": "finance.view",
   settings: "configuration.manage",

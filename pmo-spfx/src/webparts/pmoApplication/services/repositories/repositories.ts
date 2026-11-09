@@ -712,6 +712,39 @@ export class TimeEntriesRepository extends SharePointRepository<IPmoTimeEntry> {
       continuation,
     });
   }
+
+  public getProjectRange(
+    projectId: number,
+    start: Date,
+    end: Date,
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoTimeEntry>> {
+    return this.queryPage({
+      filter: `${F.timeEntries.ProjectId} eq ${projectId} and ${F.timeEntries.WorkDate} ge datetime'${odataDate(start)}' and ${F.timeEntries.WorkDate} le datetime'${odataDate(end)}'`,
+      orderBy: [
+        `${F.timeEntries.WorkDate} asc`,
+        `${F.timeEntries.EmployeeId} asc`,
+      ],
+      top: 200,
+      continuation,
+    });
+  }
+
+  public getRange(
+    start: Date,
+    end: Date,
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoTimeEntry>> {
+    return this.queryPage({
+      filter: `${F.timeEntries.WorkDate} ge datetime'${odataDate(start)}' and ${F.timeEntries.WorkDate} le datetime'${odataDate(end)}'`,
+      orderBy: [
+        `${F.timeEntries.WorkDate} asc`,
+        `${F.timeEntries.EmployeeId} asc`,
+      ],
+      top: 200,
+      continuation,
+    });
+  }
 }
 
 export class ChangeRequestsRepository extends SharePointRepository<IPmoChangeRequest> {
@@ -868,6 +901,30 @@ export class LearningAssignmentsRepository extends SharePointRepository<IPmoLear
       filter: `${F.learningAssignments.EmployeeId} eq ${employeeId}`,
       orderBy: [`${F.learningAssignments.EndDate} asc`],
       top: 50,
+      continuation,
+    });
+  }
+
+  public getActiveForEmployee(
+    employeeId: number,
+    date: Date,
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoLearningAssignment>> {
+    return this.queryPage({
+      filter: `${F.learningAssignments.EmployeeId} eq ${employeeId} and ${F.learningAssignments.StartDate} le datetime'${odataDate(date)}' and ${F.learningAssignments.EndDate} ge datetime'${odataDate(date)}' and (${F.learningAssignments.Status} eq ${odataString("Assigned")} or ${F.learningAssignments.Status} eq ${odataString("In Progress")})`,
+      orderBy: [`${F.learningAssignments.EndDate} asc`],
+      top: 50,
+      continuation,
+    });
+  }
+
+  public getAwaitingValidation(
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoLearningAssignment>> {
+    return this.queryPage({
+      filter: `${F.learningAssignments.Status} eq ${odataString("Submitted")}`,
+      orderBy: [`${F.learningAssignments.EndDate} asc`],
+      top: 100,
       continuation,
     });
   }
