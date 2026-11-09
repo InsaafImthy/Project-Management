@@ -98,6 +98,7 @@ const capabilitiesFor = (
   if (roles.has("resourceManager") && eligibility.isResourceManager) {
     values.add("resources.view");
     values.add("resources.manage");
+    values.add("projects.view");
   }
   if (roles.has("approver") && eligibility.isApprover) {
     values.add("approvals.view");

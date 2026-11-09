@@ -3,12 +3,14 @@ import type {
   ConfigurationManagementService,
   EmployeeManagementService,
   PeopleDirectoryService,
+  ProjectManagementService,
 } from "../services/domain";
 
 export interface IPmoFeatureServices {
   readonly settings: ConfigurationManagementService;
   readonly employees: EmployeeManagementService;
   readonly people: PeopleDirectoryService;
+  readonly projects: ProjectManagementService;
 }
 
 export const PmoServicesContext = React.createContext<

@@ -13,13 +13,21 @@ import type { IPmoCurrentUser } from "../models/application";
 import {
   ConfigRepository,
   EmployeesRepository,
+  ApprovalRequestsRepository,
+  ChangeRequestsRepository,
+  ProjectFinancialsRepository,
   ProjectMembersRepository,
+  ProjectsRepository,
+  QualityItemsRepository,
+  RisksIssuesRepository,
+  TimeEntriesRepository,
   WorkItemsRepository,
 } from "../services/repositories";
 import {
   ConfigurationManagementService,
   EmployeeManagementService,
   PeopleDirectoryService,
+  ProjectManagementService,
   UserCapabilityService,
 } from "../services/domain";
 import type { ISharePointClient } from "../services/sharepoint/SharePointClient";
@@ -46,6 +54,13 @@ import {
   SettingsListPage,
   SETTINGS_ROUTES,
 } from "../features/settings";
+import {
+  ProjectDashboardPage,
+  ProjectListPage,
+  ProjectOnboardingPage,
+  ProjectWorkspacePage,
+  PROJECT_ROUTES,
+} from "../features/projects";
 import { usePmoRoute } from "../routing/pmoRoutes";
 
 export interface IPmoApplicationRootProps {
@@ -97,6 +112,37 @@ const PmoApplicationContent = ({
 function PmoRouteContent(): React.ReactElement {
   const { route, back } = usePmoRoute();
   const user = React.useContext(PmoApplicationContext);
+  if (route.view === PROJECT_ROUTES.dashboard) {
+    return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
+      <ProjectDashboardPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === PROJECT_ROUTES.list) {
+    return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
+      <ProjectListPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === PROJECT_ROUTES.onboarding) {
+    return (user?.capabilities.indexOf("projects.manage") ?? -1) >= 0 ? (
+      <ProjectOnboardingPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (
+    route.view === PROJECT_ROUTES.overview ||
+    route.view === PROJECT_ROUTES.team
+  ) {
+    return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
+      <ProjectWorkspacePage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
   if (route.view === SETTINGS_ROUTES.dashboard) {
     return (user?.capabilities.indexOf("configuration.manage") ?? -1) >= 0 ? (
       <SettingsDashboardPage />
@@ -152,6 +198,13 @@ const createFeatureServices = (
   const employeesRepository = new EmployeesRepository(client);
   const membersRepository = new ProjectMembersRepository(client);
   const workItemsRepository = new WorkItemsRepository(client);
+  const projectsRepository = new ProjectsRepository(client);
+  const financialsRepository = new ProjectFinancialsRepository(client);
+  const approvalsRepository = new ApprovalRequestsRepository(client);
+  const changesRepository = new ChangeRequestsRepository(client);
+  const qualityRepository = new QualityItemsRepository(client);
+  const risksIssuesRepository = new RisksIssuesRepository(client);
+  const timeRepository = new TimeEntriesRepository(client);
   const capabilities = new UserCapabilityService(
     client,
     employeesRepository,
@@ -179,6 +232,19 @@ const createFeatureServices = (
       settings,
       employees,
       people: new PeopleDirectoryService(client),
+      projects: new ProjectManagementService(
+        projectsRepository,
+        financialsRepository,
+        membersRepository,
+        employeesRepository,
+        approvalsRepository,
+        workItemsRepository,
+        changesRepository,
+        qualityRepository,
+        timeRepository,
+        risksIssuesRepository,
+        capabilities,
+      ),
     },
   };
 };

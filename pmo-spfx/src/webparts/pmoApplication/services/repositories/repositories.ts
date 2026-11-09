@@ -310,6 +310,16 @@ export class EmployeesRepository extends SharePointRepository<IPmoEmployee> {
     });
     return page.items[0];
   }
+
+  public async getActiveBySharePointUserId(
+    sharePointUserId: number,
+  ): Promise<IPmoEmployee | undefined> {
+    const page = await this.queryPage({
+      filter: `${F.employees.EmployeeUser}Id eq ${sharePointUserId} and ${F.employees.IsActive} eq 1`,
+      top: 1,
+    });
+    return page.items[0];
+  }
 }
 
 export class EmployeeRatesRepository extends SharePointRepository<IPmoEmployeeRate> {
@@ -388,6 +398,81 @@ export class ProjectsRepository extends SharePointRepository<IPmoProject> {
       continuation,
     });
   }
+
+  /**
+   * Portfolio paging deliberately starts from an indexed predicate.  Free-text
+   * matching is capped and applied only to a single page so it cannot turn the
+   * project list into an unbounded list scan.
+   */
+  public getPage(
+    filters: {
+      readonly status?: IPmoProject["status"];
+      readonly projectManagerId?: number;
+      readonly customerName?: string;
+      readonly overallHealth?: IPmoProject["overallHealth"];
+      readonly atRisk?: boolean;
+      readonly isActive?: boolean;
+      readonly dateFrom?: Date;
+      readonly dateTo?: Date;
+      readonly search?: string;
+    },
+    continuation?: string,
+    top = 50,
+  ): Promise<IRepositoryPage<IPmoProject>> {
+    const clauses: string[] = [
+      `${F.projects.IsActive} eq ${filters.isActive === false ? 0 : 1}`,
+    ];
+    if (filters.status) {
+      clauses.push(`${F.projects.Status} eq ${odataString(filters.status)}`);
+    }
+    if (filters.projectManagerId) {
+      clauses.push(
+        `${F.projects.ProjectManager}Id eq ${filters.projectManagerId}`,
+      );
+    }
+    if (filters.customerName?.trim()) {
+      clauses.push(
+        `${F.projects.CustomerName} eq ${odataString(filters.customerName.trim())}`,
+      );
+    }
+    if (filters.overallHealth) {
+      clauses.push(
+        `${F.projects.OverallHealth} eq ${odataString(filters.overallHealth)}`,
+      );
+    }
+    if (filters.atRisk) {
+      clauses.push(
+        `(${F.projects.OverallHealth} eq ${odataString("Amber")} or ${F.projects.OverallHealth} eq ${odataString("Red")})`,
+      );
+    }
+    if (filters.dateFrom) {
+      clauses.push(
+        `${F.projects.CurrentApprovedEnd} ge datetime'${odataDate(filters.dateFrom)}'`,
+      );
+    }
+    if (filters.dateTo) {
+      clauses.push(
+        `${F.projects.CurrentApprovedEnd} le datetime'${odataDate(filters.dateTo)}'`,
+      );
+    }
+    const search = filters.search?.trim();
+    if (search) {
+      if (search.length < 2 || search.length > 80) {
+        throw new Error(
+          "Project search must contain between 2 and 80 characters.",
+        );
+      }
+      clauses.push(
+        `(startswith(${F.projects.ProjectCode},${odataString(search)}) or startswith(${F.projects.Title},${odataString(search)}))`,
+      );
+    }
+    return this.queryPage({
+      filter: clauses.join(" and "),
+      orderBy: [`${F.projects.CurrentApprovedEnd} asc`, `${F.projects.ID} asc`],
+      top: Math.min(top, search ? 50 : 100),
+      continuation,
+    });
+  }
 }
 
 export class ProjectFinancialsRepository extends SharePointRepository<IPmoProjectFinancials> {
@@ -442,6 +527,18 @@ export class ProjectMembersRepository extends SharePointRepository<IPmoProjectMe
     return this.queryPage({
       filter: `${F.projectMembers.EmployeeId} eq ${employeeId} and ${F.projectMembers.IsActive} eq 1`,
       orderBy: [`${F.projectMembers.AllocationEnd} asc`],
+      top: 100,
+      continuation,
+    });
+  }
+
+  public getForProject(
+    projectId: number,
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoProjectMember>> {
+    return this.queryPage({
+      filter: `${F.projectMembers.ProjectId} eq ${projectId}`,
+      orderBy: [`${F.projectMembers.AllocationEnd} desc`],
       top: 100,
       continuation,
     });

@@ -3,6 +3,10 @@ export { ApprovalWorkflowService } from "./ApprovalWorkflowService";
 export * from "./DomainRules";
 export { MetricsService } from "./MetricsService";
 export { TaskWorkflowService } from "./TaskWorkflowService";
+export {
+  ProjectManagementService,
+  generateProjectCode,
+} from "./ProjectManagementService";
 export * from "./ConfigurationManagementService";
 export * from "./EmployeeManagementService";
 export * from "./PeopleDirectoryService";
