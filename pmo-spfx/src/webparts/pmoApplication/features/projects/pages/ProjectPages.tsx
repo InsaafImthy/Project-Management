@@ -1272,6 +1272,47 @@ export const ProjectWorkspacePage = (): React.ReactElement => {
             label: "Team",
             content: <TeamPanel project={project} onChanged={load} />,
           },
+          {
+            key: "plan",
+            label: "Plan",
+            content: (
+              <SummaryCard title="Project plan">
+                <p>
+                  Manage phases, milestones, tasks, subtasks, dependencies and
+                  execution-plan approval in the governed planning workspace.
+                </p>
+                <Stack direction="horizontal" gap="sm">
+                  <AppButton
+                    variant="primary"
+                    text="Open project plan"
+                    onClick={() =>
+                      navigate({
+                        view: "project-plan",
+                        parameters: { projectId: String(project.id) },
+                        query: {
+                          view: "project-plan",
+                          projectId: String(project.id),
+                        },
+                      })
+                    }
+                  />
+                  <AppButton
+                    text="Planning dashboard"
+                    onClick={() =>
+                      navigate({
+                        view: "planning-dashboard",
+                        parameters: { projectId: String(project.id) },
+                        query: {
+                          view: "planning-dashboard",
+                          projectId: String(project.id),
+                        },
+                      })
+                    }
+                  />
+                </Stack>
+              </SummaryCard>
+            ),
+          },
         ]}
       />
     </ContentContainer>

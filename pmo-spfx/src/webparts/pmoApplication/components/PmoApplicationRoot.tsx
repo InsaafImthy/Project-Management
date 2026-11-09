@@ -20,6 +20,7 @@ import {
   ProjectsRepository,
   QualityItemsRepository,
   RisksIssuesRepository,
+  TaskActionsRepository,
   TimeEntriesRepository,
   WorkItemsRepository,
 } from "../services/repositories";
@@ -27,7 +28,11 @@ import {
   ConfigurationManagementService,
   EmployeeManagementService,
   PeopleDirectoryService,
+  PlanningService,
   ProjectManagementService,
+  ReviewWorkflowService,
+  TaskWorkflowService,
+  WorkManagementService,
   UserCapabilityService,
 } from "../services/domain";
 import type { ISharePointClient } from "../services/sharepoint/SharePointClient";
@@ -61,6 +66,17 @@ import {
   ProjectWorkspacePage,
   PROJECT_ROUTES,
 } from "../features/projects";
+import {
+  ProjectPlanPage,
+  PlanningDashboardPage,
+  PLANNING_ROUTES,
+} from "../features/planning";
+import {
+  MyWorkPage,
+  ReviewQueuePage,
+  TaskDetailPage,
+  WORK_ROUTES,
+} from "../features/work";
 import { usePmoRoute } from "../routing/pmoRoutes";
 
 export interface IPmoApplicationRootProps {
@@ -112,6 +128,44 @@ const PmoApplicationContent = ({
 function PmoRouteContent(): React.ReactElement {
   const { route, back } = usePmoRoute();
   const user = React.useContext(PmoApplicationContext);
+  if (route.view === PLANNING_ROUTES.dashboard) {
+    return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
+      <PlanningDashboardPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === PLANNING_ROUTES.plan) {
+    return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
+      <ProjectPlanPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === WORK_ROUTES.myWork) {
+    return (user?.capabilities.indexOf("work.view-own") ?? -1) >= 0 ? (
+      <MyWorkPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === WORK_ROUTES.task) {
+    return (user?.capabilities.indexOf("work.view-own") ?? -1) >= 0 ||
+      (user?.capabilities.indexOf("projects.manage") ?? -1) >= 0 ||
+      (user?.capabilities.indexOf("quality.manage") ?? -1) >= 0 ? (
+      <TaskDetailPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === WORK_ROUTES.reviews) {
+    return (user?.capabilities.indexOf("projects.manage") ?? -1) >= 0 ||
+      (user?.capabilities.indexOf("quality.manage") ?? -1) >= 0 ? (
+      <ReviewQueuePage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
   if (route.view === PROJECT_ROUTES.dashboard) {
     return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
       <ProjectDashboardPage />
@@ -205,6 +259,7 @@ const createFeatureServices = (
   const qualityRepository = new QualityItemsRepository(client);
   const risksIssuesRepository = new RisksIssuesRepository(client);
   const timeRepository = new TimeEntriesRepository(client);
+  const taskActionsRepository = new TaskActionsRepository(client);
   const capabilities = new UserCapabilityService(
     client,
     employeesRepository,
@@ -243,6 +298,30 @@ const createFeatureServices = (
         qualityRepository,
         timeRepository,
         risksIssuesRepository,
+        capabilities,
+      ),
+      planning: new PlanningService(
+        projectsRepository,
+        workItemsRepository,
+        employeesRepository,
+        approvalsRepository,
+        capabilities,
+      ),
+      taskWorkflow: new TaskWorkflowService(
+        workItemsRepository,
+        taskActionsRepository,
+        risksIssuesRepository,
+      ),
+      reviews: new ReviewWorkflowService(workItemsRepository, capabilities),
+      work: new WorkManagementService(
+        workItemsRepository,
+        taskActionsRepository,
+        new TaskWorkflowService(
+          workItemsRepository,
+          taskActionsRepository,
+          risksIssuesRepository,
+        ),
+        new ReviewWorkflowService(workItemsRepository, capabilities),
         capabilities,
       ),
     },

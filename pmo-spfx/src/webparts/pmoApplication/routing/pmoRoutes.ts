@@ -12,6 +12,7 @@ export const PMO_ROUTES = {
   projectOverview: "project-overview",
   projectTeam: "project-team",
   projectWorkspace: "project-workspace",
+  reviews: "reviews",
   approvals: "approvals",
   resources: "resources",
   quality: "quality",
@@ -92,6 +93,14 @@ export const PMO_NAVIGATION: readonly IPmoNavigationItem[] = [
     route: PMO_ROUTES.projects,
     iconName: "ProjectCollection",
     requiredCapabilities: ["projects.view"],
+  },
+  {
+    key: "reviews",
+    group: "Delivery",
+    label: "Reviews",
+    route: PMO_ROUTES.reviews,
+    iconName: "ReviewRequestSolid",
+    requiredCapabilities: ["projects.manage"],
   },
   {
     key: "approvals",

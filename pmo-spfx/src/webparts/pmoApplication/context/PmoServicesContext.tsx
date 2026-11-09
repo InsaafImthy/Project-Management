@@ -3,7 +3,11 @@ import type {
   ConfigurationManagementService,
   EmployeeManagementService,
   PeopleDirectoryService,
+  PlanningService,
   ProjectManagementService,
+  ReviewWorkflowService,
+  TaskWorkflowService,
+  WorkManagementService,
 } from "../services/domain";
 
 export interface IPmoFeatureServices {
@@ -11,6 +15,10 @@ export interface IPmoFeatureServices {
   readonly employees: EmployeeManagementService;
   readonly people: PeopleDirectoryService;
   readonly projects: ProjectManagementService;
+  readonly planning: PlanningService;
+  readonly taskWorkflow: TaskWorkflowService;
+  readonly reviews: ReviewWorkflowService;
+  readonly work: WorkManagementService;
 }
 
 export const PmoServicesContext = React.createContext<

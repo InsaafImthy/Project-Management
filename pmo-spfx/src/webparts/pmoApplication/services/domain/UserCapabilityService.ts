@@ -239,6 +239,7 @@ const routeCapabilities: Readonly<Record<string, PmoCapability | undefined>> = {
   home: undefined,
   "my-work": "work.view-own",
   "my-time": "time.view-own",
+  reviews: "projects.manage",
   projects: "projects.view",
   approvals: "approvals.view",
   quality: "quality.view",

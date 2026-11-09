@@ -61,6 +61,36 @@ describe("domain transition rules", () => {
     expect(canTransitionWorkItemStatus("In Progress", "Accepted")).toBe(false);
   });
 
+  it.each([
+    ["Draft", "Assigned"],
+    ["Draft", "Ready"],
+    ["Assigned", "Accepted"],
+    ["Accepted", "In Progress"],
+    ["Ready", "In Progress"],
+    ["In Progress", "Blocked"],
+    ["In Progress", "Submitted for Review"],
+    ["Blocked", "In Progress"],
+    ["Submitted for Review", "In Review"],
+    ["In Review", "Submitted to QA"],
+    ["In Review", "Accepted"],
+    ["Submitted to QA", "QA In Progress"],
+    ["QA In Progress", "Accepted"],
+    ["On Hold", "Ready"],
+  ] as const)("allows work transition %s to %s", (from, to) => {
+    expect(canTransitionWorkItemStatus(from, to)).toBe(true);
+  });
+
+  it.each([
+    ["Draft", "In Progress"],
+    ["Assigned", "Blocked"],
+    ["Accepted", "Submitted for Review"],
+    ["In Progress", "Accepted"],
+    ["Blocked", "Accepted"],
+    ["Cancelled", "Ready"],
+  ] as const)("rejects work transition %s to %s", (from, to) => {
+    expect(canTransitionWorkItemStatus(from, to)).toBe(false);
+  });
+
   it("maps approval decisions and prevents repeated terminal decisions", () => {
     expect(approvalStatusForDecision("Conditionally Approve")).toBe(
       "Conditionally Approved",
