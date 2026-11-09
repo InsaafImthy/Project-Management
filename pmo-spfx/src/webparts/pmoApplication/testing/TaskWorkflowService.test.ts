@@ -240,6 +240,15 @@ describe("TaskWorkflowService", () => {
     expect(blocked.processingStatus).toBe("Applied");
     expect(blockedHarness.getWork().status).toBe("Blocked");
     expect(blockedHarness.risks.size).toBe(1);
+    const unblocked = await blockedHarness.service.requestAndApply(1, actor, {
+      actionType: "Unblock",
+      comment: "Dependency restored",
+    });
+    expect(unblocked.processingStatus).toBe("Applied");
+    expect(blockedHarness.getWork().status).toBe("In Progress");
+    expect(Array.from(blockedHarness.risks.values())[0]?.status).toBe(
+      "Resolved",
+    );
 
     const unauthorizedHarness = createHarness(makeWorkItem());
     const rejected = await unauthorizedHarness.service.requestAndApply(

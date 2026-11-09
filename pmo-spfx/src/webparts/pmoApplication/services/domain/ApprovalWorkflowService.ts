@@ -63,6 +63,9 @@ export class ApprovalWorkflowService {
     >,
     private readonly sources: IApprovalSourceRepositories,
     private readonly now: () => Date = () => new Date(),
+    private readonly afterApply?: (
+      approval: IPmoApprovalRequest,
+    ) => Promise<void>,
   ) {}
 
   public async create(
@@ -110,6 +113,8 @@ export class ApprovalWorkflowService {
     comment?: string,
     segregationOfDuties = true,
   ): Promise<IPmoApprovalRequest> {
+    // Always read the current persisted approval before mutating it.  The
+    // returned ETag is then used for each approval-state transition.
     let approval = await this.approvals.getById(approvalId);
     if (terminalApprovalStatuses.indexOf(approval.approvalStatus) >= 0) {
       return approval;
@@ -128,23 +133,28 @@ export class ApprovalWorkflowService {
       {
         [F.approvalRequests.ApprovalStatus]: "In Progress",
         [F.approvalRequests.FlowProcessingStatus]: "Processing",
+        [F.approvalRequests.Decision]: decision,
+        [F.approvalRequests.DecisionComment]: comment,
+        [personIdField(F.approvalRequests.DecidedBy)]: actor.id,
+        [F.approvalRequests.DecidedOn]: this.now().toISOString(),
       },
       approval.etag,
     );
     try {
       await this.applyGovernedSource(approval, actor, decision, comment);
-      return await this.approvals.update(
+      const completed = await this.approvals.update(
         approval.id,
         {
           [F.approvalRequests.ApprovalStatus]: targetStatus,
-          [F.approvalRequests.Decision]: decision,
-          [F.approvalRequests.DecisionComment]: comment,
-          [personIdField(F.approvalRequests.DecidedBy)]: actor.id,
-          [F.approvalRequests.DecidedOn]: this.now().toISOString(),
-          [F.approvalRequests.FlowProcessingStatus]: "Completed",
+          [F.approvalRequests.FlowProcessingStatus]:
+            decision === "Request Clarification" ? "Waiting" : "Completed",
         },
         approval.etag,
       );
+      if (decision !== "Request Clarification") {
+        await this.afterApply?.(completed);
+      }
+      return completed;
     } catch (error) {
       const message =
         error instanceof SharePointError
@@ -164,6 +174,28 @@ export class ApprovalWorkflowService {
         .catch(() => undefined);
       throw error;
     }
+  }
+
+  /** Support-only retry: repeat the persisted decision, never accept a new one. */
+  public async retry(
+    approvalId: number,
+    actor: IApprovalWorkflowActor,
+    segregationOfDuties = true,
+  ): Promise<IPmoApprovalRequest> {
+    const approval = await this.approvals.getById(approvalId);
+    if (approval.flowProcessingStatus !== "Failed") {
+      throw new Error("Only a failed approval action can be retried.");
+    }
+    if (!approval.decision) {
+      throw new Error("Failed approval has no recorded decision to retry.");
+    }
+    return this.decide(
+      approvalId,
+      actor,
+      approval.decision as ApprovalDecision,
+      approval.decisionComment,
+      segregationOfDuties,
+    );
   }
 
   private assertApprover(
@@ -256,31 +288,29 @@ export class ApprovalWorkflowService {
               : decision === "Request Clarification"
                 ? "Clarification Requested"
                 : "Rejected";
-        if (request.requestStatus !== requestStatus) {
-          await this.sources.changeRequests.update(
-            request.id,
-            {
-              [F.changeRequests.RequestStatus]: requestStatus,
-              [F.changeRequests.DecisionComment]: comment,
-              [personIdField(F.changeRequests.DecidedBy)]: actor.id,
-              [F.changeRequests.DecidedOn]: this.now().toISOString(),
-            },
-            request.etag,
-          );
-        }
         if (approved && request.workItemId) {
           const workItem = await this.sources.workItems.getById(
             request.workItemId,
           );
           const values: Record<string, unknown> = {};
-          if (request.proposedEffortHours !== undefined) {
+          if (
+            request.proposedEffortHours !== undefined &&
+            request.proposedEffortHours !== workItem.approvedEffortHours
+          ) {
             values[F.workItems.ApprovedEffortHours] =
               request.proposedEffortHours;
           }
-          if (request.proposedDate) {
+          if (
+            request.proposedDate &&
+            request.proposedDate.valueOf() !== workItem.plannedEnd?.valueOf()
+          ) {
             values[F.workItems.PlannedEnd] = request.proposedDate.toISOString();
           }
+          if (workItem.lastActionId !== approval.id) {
+            values[F.workItems.LastActionId] = approval.id;
+          }
           if (Object.keys(values).length > 0) {
+            values[F.workItems.PlanVersion] = workItem.planVersion + 1;
             await this.sources.workItems.update(
               workItem.id,
               values,
@@ -292,21 +322,42 @@ export class ApprovalWorkflowService {
             approval.projectId,
           );
           const values: Record<string, unknown> = {};
-          if (request.proposedEffortHours !== undefined) {
+          if (
+            request.proposedEffortHours !== undefined &&
+            request.proposedEffortHours !== project.approvedEffortHours
+          ) {
             values[F.projects.ApprovedEffortHours] =
               request.proposedEffortHours;
           }
-          if (request.proposedDate) {
+          if (
+            request.proposedDate &&
+            request.proposedDate.valueOf() !==
+              project.currentApprovedEnd.valueOf()
+          ) {
             values[F.projects.CurrentApprovedEnd] =
               request.proposedDate.toISOString();
           }
           if (Object.keys(values).length > 0) {
+            values[F.projects.CurrentPlanVersion] =
+              project.currentPlanVersion + 1;
             await this.sources.projects.update(
               project.id,
               values,
               project.etag,
             );
           }
+        }
+        if (request.requestStatus !== requestStatus) {
+          await this.sources.changeRequests.update(
+            request.id,
+            {
+              [F.changeRequests.RequestStatus]: requestStatus,
+              [F.changeRequests.DecisionComment]: comment,
+              [personIdField(F.changeRequests.DecidedBy)]: actor.id,
+              [F.changeRequests.DecidedOn]: this.now().toISOString(),
+            },
+            request.etag,
+          );
         }
         return;
       }

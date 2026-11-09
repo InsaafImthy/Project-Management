@@ -40,6 +40,7 @@ import {
   assertCapability,
   type UserCapabilityService,
 } from "./UserCapabilityService";
+import type { ClosureReadinessService } from "./ClosureReadinessService";
 
 const isoDate = (value: string): string =>
   new Date(`${value}T00:00:00`).toISOString();
@@ -93,6 +94,10 @@ export class ProjectManagementService {
     private readonly time: TimeEntriesRepository,
     private readonly risksIssues: RisksIssuesRepository,
     private readonly capabilities: UserCapabilityService,
+    private readonly closureReadiness?: Pick<
+      ClosureReadinessService,
+      "assertReady"
+    >,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -421,6 +426,15 @@ export class ProjectManagementService {
       }
     }
     if (target === "Pending Closure") {
+      if (!this.closureReadiness) {
+        throw new PmoBusinessError(
+          "validation",
+          "Closure readiness service is not configured.",
+        );
+      }
+      await this.closureReadiness.assertReady(project.id, {
+        requireApprovedStatusReport: true,
+      });
       if (!approver) {
         throw new PmoBusinessError(
           "validation",

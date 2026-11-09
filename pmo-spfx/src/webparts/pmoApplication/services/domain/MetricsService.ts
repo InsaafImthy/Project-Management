@@ -64,6 +64,7 @@ export class MetricsService {
   ): Promise<IProjectMetricsResult> {
     if (
       !hasCapability(actor, "projects.manage") &&
+      !hasCapability(actor, "approvals.decide") &&
       !actor.securityRoles.has("owner")
     ) {
       throw new Error(

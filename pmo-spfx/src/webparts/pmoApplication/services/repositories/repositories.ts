@@ -713,6 +713,18 @@ export class TimeEntriesRepository extends SharePointRepository<IPmoTimeEntry> {
     });
   }
 
+  public getByProject(
+    projectId: number,
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoTimeEntry>> {
+    return this.queryPage({
+      filter: `${F.timeEntries.ProjectId} eq ${projectId}`,
+      orderBy: [`${F.timeEntries.WorkDate} desc`],
+      top: 200,
+      continuation,
+    });
+  }
+
   public getProjectRange(
     projectId: number,
     start: Date,
@@ -773,6 +785,30 @@ export class ChangeRequestsRepository extends SharePointRepository<IPmoChangeReq
       continuation,
     });
   }
+
+  public getForRequester(
+    sharePointUserId: number,
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoChangeRequest>> {
+    return this.queryPage({
+      filter: `${F.changeRequests.RequestedBy}Id eq ${sharePointUserId}`,
+      orderBy: [`${F.changeRequests.RequestedOn} desc`],
+      top: 50,
+      continuation,
+    });
+  }
+
+  public getByStatus(
+    status: IPmoChangeRequest["requestStatus"],
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoChangeRequest>> {
+    return this.queryPage({
+      filter: `${F.changeRequests.RequestStatus} eq ${odataString(status)}`,
+      orderBy: [`${F.changeRequests.RequestedOn} desc`],
+      top: 100,
+      continuation,
+    });
+  }
 }
 
 export class ApprovalRequestsRepository extends SharePointRepository<IPmoApprovalRequest> {
@@ -802,6 +838,42 @@ export class ApprovalRequestsRepository extends SharePointRepository<IPmoApprova
     });
   }
 
+  public getForRequester(
+    sharePointUserId: number,
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoApprovalRequest>> {
+    return this.queryPage({
+      filter: `${F.approvalRequests.RequestedBy}Id eq ${sharePointUserId}`,
+      orderBy: [`${F.approvalRequests.RequestedOn} desc`],
+      top: 100,
+      continuation,
+    });
+  }
+
+  public getByStatus(
+    status: IPmoApprovalRequest["approvalStatus"],
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoApprovalRequest>> {
+    return this.queryPage({
+      filter: `${F.approvalRequests.ApprovalStatus} eq ${odataString(status)}`,
+      orderBy: [`${F.approvalRequests.DueOn} asc`],
+      top: 100,
+      continuation,
+    });
+  }
+
+  public getOverdue(
+    before: Date,
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoApprovalRequest>> {
+    return this.queryPage({
+      filter: `${F.approvalRequests.DueOn} lt datetime'${odataDate(before)}' and (${F.approvalRequests.ApprovalStatus} eq ${odataString("Submitted")} or ${F.approvalRequests.ApprovalStatus} eq ${odataString("In Progress")})`,
+      orderBy: [`${F.approvalRequests.DueOn} asc`],
+      top: 100,
+      continuation,
+    });
+  }
+
   public getForSource(
     sourceList: PmoContainerName,
     sourceItemId: number,
@@ -812,6 +884,29 @@ export class ApprovalRequestsRepository extends SharePointRepository<IPmoApprova
       top: 50,
     });
   }
+
+  public getByProject(
+    projectId: number,
+    continuation?: string,
+  ): Promise<IRepositoryPage<IPmoApprovalRequest>> {
+    return this.queryPage({
+      filter: `${F.approvalRequests.ProjectId} eq ${projectId}`,
+      orderBy: [`${F.approvalRequests.RequestedOn} desc`],
+      top: 100,
+      continuation,
+    });
+  }
+}
+
+export interface IRiskIssueListFilters {
+  readonly projectId?: number;
+  readonly recordType?: IPmoRiskIssue["recordType"];
+  readonly status?: IPmoRiskIssue["status"];
+  readonly severity?: IPmoRiskIssue["severity"];
+  readonly ownerId?: number;
+  readonly dueBefore?: Date;
+  readonly openOnly?: boolean;
+  readonly escalated?: boolean;
 }
 
 export class RisksIssuesRepository extends SharePointRepository<IPmoRiskIssue> {
@@ -836,6 +931,76 @@ export class RisksIssuesRepository extends SharePointRepository<IPmoRiskIssue> {
       continuation,
     });
   }
+
+  public getPage(
+    filters: IRiskIssueListFilters,
+    continuation?: string,
+    top = 50,
+  ): Promise<IRepositoryPage<IPmoRiskIssue>> {
+    const clauses: string[] = [];
+    if (filters.projectId !== undefined)
+      clauses.push(`${F.risksIssues.ProjectId} eq ${filters.projectId}`);
+    else if (filters.recordType)
+      clauses.push(
+        `${F.risksIssues.RecordType} eq ${odataString(filters.recordType)}`,
+      );
+    else if (filters.ownerId !== undefined)
+      clauses.push(`${F.risksIssues.Owner}Id eq ${filters.ownerId}`);
+    else if (filters.status)
+      clauses.push(`${F.risksIssues.Status} eq ${odataString(filters.status)}`);
+    else clauses.push(`${F.risksIssues.ID} gt 0`);
+    if (filters.recordType && filters.projectId !== undefined)
+      clauses.push(
+        `${F.risksIssues.RecordType} eq ${odataString(filters.recordType)}`,
+      );
+    if (
+      filters.status &&
+      !clauses.some((clause) => clause.startsWith(`${F.risksIssues.Status} eq`))
+    )
+      clauses.push(`${F.risksIssues.Status} eq ${odataString(filters.status)}`);
+    if (filters.severity)
+      clauses.push(
+        `${F.risksIssues.Severity} eq ${odataString(filters.severity)}`,
+      );
+    if (
+      filters.ownerId !== undefined &&
+      !clauses.some((clause) => clause.startsWith(`${F.risksIssues.Owner}Id`))
+    )
+      clauses.push(`${F.risksIssues.Owner}Id eq ${filters.ownerId}`);
+    if (filters.openOnly)
+      clauses.push(
+        `${F.risksIssues.Status} ne ${odataString("Closed")} and ${F.risksIssues.Status} ne ${odataString("Resolved")}`,
+      );
+    if (filters.escalated !== undefined)
+      clauses.push(
+        `${F.risksIssues.IsEscalated} eq ${filters.escalated ? 1 : 0}`,
+      );
+    if (filters.dueBefore)
+      clauses.push(
+        `${F.risksIssues.TargetResolutionDate} lt datetime'${odataDate(filters.dueBefore)}'`,
+      );
+    return this.queryPage({
+      filter: clauses.join(" and "),
+      orderBy: [
+        `${F.risksIssues.TargetResolutionDate} asc`,
+        `${F.risksIssues.RaisedOn} desc`,
+      ],
+      top,
+      continuation,
+    });
+  }
+}
+
+export interface IQualityItemListFilters {
+  readonly projectId?: number;
+  readonly qualityType?: IPmoQualityItem["qualityType"];
+  readonly status?: IPmoQualityItem["status"];
+  readonly testResult?: IPmoQualityItem["testResult"];
+  readonly severity?: IPmoQualityItem["severity"];
+  readonly assignedToId?: number;
+  readonly releaseBlocking?: boolean;
+  readonly overdueBefore?: Date;
+  readonly openOnly?: boolean;
 }
 
 export class QualityItemsRepository extends SharePointRepository<IPmoQualityItem> {
@@ -873,6 +1038,99 @@ export class QualityItemsRepository extends SharePointRepository<IPmoQualityItem
       filter: `${F.qualityItems.AssignedTo}Id eq ${sharePointUserId} and ${F.qualityItems.Status} ne ${odataString("Closed")}`,
       orderBy: [`${F.qualityItems.TargetFixDate} asc`],
       top: 50,
+      continuation,
+    });
+  }
+
+  public getPage(
+    filters: IQualityItemListFilters,
+    continuation?: string,
+    top = 50,
+  ): Promise<IRepositoryPage<IPmoQualityItem>> {
+    const clauses: string[] = [];
+    if (filters.projectId !== undefined)
+      clauses.push(`${F.qualityItems.ProjectId} eq ${filters.projectId}`);
+    else if (filters.qualityType)
+      clauses.push(
+        `${F.qualityItems.QualityType} eq ${odataString(filters.qualityType)}`,
+      );
+    else if (filters.status)
+      clauses.push(
+        `${F.qualityItems.Status} eq ${odataString(filters.status)}`,
+      );
+    else if (filters.testResult)
+      clauses.push(
+        `${F.qualityItems.TestResult} eq ${odataString(filters.testResult)}`,
+      );
+    else if (filters.assignedToId !== undefined)
+      clauses.push(`${F.qualityItems.AssignedTo}Id eq ${filters.assignedToId}`);
+    else if (filters.releaseBlocking !== undefined)
+      clauses.push(
+        `${F.qualityItems.IsReleaseBlocking} eq ${filters.releaseBlocking ? 1 : 0}`,
+      );
+    else clauses.push(`${F.qualityItems.ID} gt 0`);
+    if (
+      filters.qualityType &&
+      !clauses.some((clause) =>
+        clause.startsWith(`${F.qualityItems.QualityType} eq`),
+      )
+    )
+      clauses.push(
+        `${F.qualityItems.QualityType} eq ${odataString(filters.qualityType)}`,
+      );
+    if (
+      filters.status &&
+      !clauses.some((clause) =>
+        clause.startsWith(`${F.qualityItems.Status} eq`),
+      )
+    )
+      clauses.push(
+        `${F.qualityItems.Status} eq ${odataString(filters.status)}`,
+      );
+    if (
+      filters.testResult &&
+      !clauses.some((clause) =>
+        clause.startsWith(`${F.qualityItems.TestResult} eq`),
+      )
+    )
+      clauses.push(
+        `${F.qualityItems.TestResult} eq ${odataString(filters.testResult)}`,
+      );
+    if (filters.severity)
+      clauses.push(
+        `${F.qualityItems.Severity} eq ${odataString(filters.severity)}`,
+      );
+    if (
+      filters.assignedToId !== undefined &&
+      !clauses.some((clause) =>
+        clause.startsWith(`${F.qualityItems.AssignedTo}Id`),
+      )
+    )
+      clauses.push(`${F.qualityItems.AssignedTo}Id eq ${filters.assignedToId}`);
+    if (
+      filters.releaseBlocking !== undefined &&
+      !clauses.some((clause) =>
+        clause.startsWith(`${F.qualityItems.IsReleaseBlocking} eq`),
+      )
+    )
+      clauses.push(
+        `${F.qualityItems.IsReleaseBlocking} eq ${filters.releaseBlocking ? 1 : 0}`,
+      );
+    if (filters.openOnly)
+      clauses.push(
+        `${F.qualityItems.Status} ne ${odataString("Closed")} and ${F.qualityItems.Status} ne ${odataString("Passed")} and ${F.qualityItems.Status} ne ${odataString("Rejected")}`,
+      );
+    if (filters.overdueBefore)
+      clauses.push(
+        `${F.qualityItems.TargetFixDate} lt datetime'${odataDate(filters.overdueBefore)}'`,
+      );
+    return this.queryPage({
+      filter: clauses.join(" and "),
+      orderBy: [
+        `${F.qualityItems.TargetFixDate} asc`,
+        `${F.qualityItems.RaisedOn} desc`,
+      ],
+      top,
       continuation,
     });
   }
@@ -973,6 +1231,60 @@ export class ProjectStatusReportsRepository extends SharePointRepository<IPmoPro
       filter: `${F.projectStatusReports.ProjectId} eq ${projectId}`,
       orderBy: [`${F.projectStatusReports.ReportingDate} desc`],
       top: 50,
+      continuation,
+    });
+  }
+
+  public getPage(
+    filters: {
+      readonly projectId?: number;
+      readonly reportStatus?: IPmoProjectStatusReport["reportStatus"];
+      readonly periodStart?: Date;
+      readonly periodEnd?: Date;
+    },
+    continuation?: string,
+    top = 50,
+  ): Promise<IRepositoryPage<IPmoProjectStatusReport>> {
+    const clauses: string[] = [];
+    if (filters.projectId !== undefined)
+      clauses.push(
+        `${F.projectStatusReports.ProjectId} eq ${filters.projectId}`,
+      );
+    else if (filters.reportStatus)
+      clauses.push(
+        `${F.projectStatusReports.ReportStatus} eq ${odataString(filters.reportStatus)}`,
+      );
+    else if (filters.periodStart)
+      clauses.push(
+        `${F.projectStatusReports.ReportingDate} ge datetime'${odataDate(filters.periodStart)}'`,
+      );
+    else clauses.push(`${F.projectStatusReports.ID} gt 0`);
+    if (
+      filters.reportStatus &&
+      !clauses.some((clause) =>
+        clause.startsWith(`${F.projectStatusReports.ReportStatus} eq`),
+      )
+    )
+      clauses.push(
+        `${F.projectStatusReports.ReportStatus} eq ${odataString(filters.reportStatus)}`,
+      );
+    if (
+      filters.periodStart &&
+      !clauses.some((clause) =>
+        clause.startsWith(`${F.projectStatusReports.ReportingDate} ge`),
+      )
+    )
+      clauses.push(
+        `${F.projectStatusReports.ReportingDate} ge datetime'${odataDate(filters.periodStart)}'`,
+      );
+    if (filters.periodEnd)
+      clauses.push(
+        `${F.projectStatusReports.ReportingDate} le datetime'${odataDate(filters.periodEnd)}'`,
+      );
+    return this.queryPage({
+      filter: clauses.join(" and "),
+      orderBy: [`${F.projectStatusReports.ReportingDate} desc`],
+      top,
       continuation,
     });
   }

@@ -14,8 +14,11 @@ export const PMO_ROUTES = {
   projectWorkspace: "project-workspace",
   reviews: "reviews",
   approvals: "approvals",
+  changeRequests: "change-requests",
   resources: "resources",
   quality: "quality",
+  risks: "risks",
+  statusReports: "status-reports",
   portfolio: "portfolio",
   reports: "reports",
   financialSummary: "financial-summary",
@@ -34,7 +37,10 @@ export type PmoRouteParameter =
   | "projectId"
   | "workItemId"
   | "approvalId"
+  | "requestId"
   | "qualityId"
+  | "riskId"
+  | "reportId"
   | "employeeId"
   | "returnView";
 
@@ -119,6 +125,14 @@ export const PMO_NAVIGATION: readonly IPmoNavigationItem[] = [
     requiredCapabilities: ["approvals.view"],
   },
   {
+    key: "change-requests",
+    group: "Governance",
+    label: "Change Requests",
+    route: PMO_ROUTES.changeRequests,
+    iconName: "ChangeEntitlements",
+    requiredCapabilities: ["work.view-own"],
+  },
+  {
     key: "portfolio",
     group: "Governance",
     label: "Portfolio",
@@ -151,6 +165,22 @@ export const PMO_NAVIGATION: readonly IPmoNavigationItem[] = [
     requiredCapabilities: ["quality.view"],
   },
   {
+    key: "risks",
+    group: "Operations",
+    label: "Risks and Issues",
+    route: PMO_ROUTES.risks,
+    iconName: "Warning",
+    requiredCapabilities: ["projects.view"],
+  },
+  {
+    key: "status-reports",
+    group: "Governance",
+    label: "Status Reports",
+    route: PMO_ROUTES.statusReports,
+    iconName: "ReportDocument",
+    requiredCapabilities: ["projects.view"],
+  },
+  {
     key: "financials",
     group: "Restricted",
     label: "Financial Summary",
@@ -180,7 +210,10 @@ const parameterKeys: readonly PmoRouteParameter[] = [
   "projectId",
   "workItemId",
   "approvalId",
+  "requestId",
   "qualityId",
+  "riskId",
+  "reportId",
   "employeeId",
   "returnView",
 ];

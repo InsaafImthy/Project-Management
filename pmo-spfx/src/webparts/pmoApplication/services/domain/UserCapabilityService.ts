@@ -73,6 +73,11 @@ interface IGroupsWire {
   readonly d?: { readonly results?: readonly { readonly Title: string }[] };
 }
 
+interface IUserMembershipWire {
+  readonly value?: readonly { readonly Id: number }[];
+  readonly d?: { readonly results?: readonly { readonly Id: number }[] };
+}
+
 const capabilitiesFor = (
   roles: ReadonlySet<PmoSecurityRole>,
   eligibility: IPmoEligibility,
@@ -181,6 +186,20 @@ export class UserCapabilityService {
       continuation = page.continuation;
     } while (continuation);
     return memberships;
+  }
+
+  /** Resolves a configured approver against the actual SharePoint group. */
+  public async isUserInSecurityRole(
+    sharePointUserId: number,
+    role: PmoSecurityRole,
+  ): Promise<boolean> {
+    const group = encodeURIComponent(PMO_GROUPS[role].replace(/'/g, "''"));
+    const response = await this.client.getJson<IUserMembershipWire>(
+      `_api/web/sitegroups/getbyname('${group}')/users?$select=Id&$filter=Id eq ${sharePointUserId}`,
+    );
+    return (response.value ?? response.d?.results ?? []).some(
+      (user) => user.Id === sharePointUserId,
+    );
   }
 
   private async resolveUncached(): Promise<IPmoResolvedUserContext> {

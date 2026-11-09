@@ -24,6 +24,8 @@ import {
   TimeEntriesRepository,
   LearningAssignmentsRepository,
   WorkItemsRepository,
+  ProjectCostsRepository,
+  ProjectStatusReportsRepository,
 } from "../services/repositories";
 import {
   ConfigurationManagementService,
@@ -38,6 +40,12 @@ import {
   TimeManagementService,
   ResourceManagementService,
   LearningManagementService,
+  ChangeManagementService,
+  MetricsService,
+  QualityGovernanceService,
+  RiskManagementService,
+  ProjectStatusReportService,
+  ClosureReadinessService,
 } from "../services/domain";
 import type { ISharePointClient } from "../services/sharepoint/SharePointClient";
 import { parseConfigNumber } from "../validation/configuration";
@@ -89,6 +97,33 @@ import {
   LEARNING_ROUTES,
 } from "../features/learning";
 import { usePmoRoute } from "../routing/pmoRoutes";
+import {
+  ApprovalDashboardPage,
+  ApprovalDetailPage,
+  ApprovalQueuePage,
+  APPROVAL_ROUTES,
+  ChangeRequestDetailPage,
+  ChangeRequestsPage,
+} from "../features/approvals";
+import {
+  QualityDashboardPage,
+  QualityDetailPage,
+  QualityListPage,
+  QUALITY_ROUTES,
+} from "../features/quality";
+import {
+  RiskDashboardPage,
+  RiskDetailPage,
+  RiskListPage,
+  RISK_ROUTES,
+} from "../features/risks";
+import {
+  StatusReportDashboardPage,
+  StatusReportDetailPage,
+  StatusReportEditorPage,
+  StatusReportListPage,
+  STATUS_REPORT_ROUTES,
+} from "../features/statusReports";
 
 export interface IPmoApplicationRootProps {
   readonly userDisplayName: string;
@@ -139,6 +174,114 @@ const PmoApplicationContent = ({
 function PmoRouteContent(): React.ReactElement {
   const { route, back } = usePmoRoute();
   const user = React.useContext(PmoApplicationContext);
+  if (route.view === QUALITY_ROUTES.dashboard) {
+    return (user?.capabilities.indexOf("quality.view") ?? -1) >= 0 ? (
+      <QualityDashboardPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === QUALITY_ROUTES.list) {
+    return (user?.capabilities.indexOf("quality.view") ?? -1) >= 0 ? (
+      <QualityListPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === QUALITY_ROUTES.detail) {
+    return (user?.capabilities.indexOf("quality.view") ?? -1) >= 0 ? (
+      <QualityDetailPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === RISK_ROUTES.dashboard) {
+    return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
+      <RiskDashboardPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === RISK_ROUTES.list) {
+    return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
+      <RiskListPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === RISK_ROUTES.detail) {
+    return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
+      <RiskDetailPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === STATUS_REPORT_ROUTES.dashboard) {
+    return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
+      <StatusReportDashboardPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === STATUS_REPORT_ROUTES.list) {
+    return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
+      <StatusReportListPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === STATUS_REPORT_ROUTES.editor) {
+    return (user?.capabilities.indexOf("projects.manage") ?? -1) >= 0 ? (
+      <StatusReportEditorPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === STATUS_REPORT_ROUTES.detail) {
+    return (user?.capabilities.indexOf("projects.view") ?? -1) >= 0 ? (
+      <StatusReportDetailPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === APPROVAL_ROUTES.dashboard) {
+    return (user?.capabilities.indexOf("approvals.view") ?? -1) >= 0 ||
+      (user?.capabilities.indexOf("work.view-own") ?? -1) >= 0 ? (
+      <ApprovalDashboardPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === APPROVAL_ROUTES.requests) {
+    return (user?.capabilities.indexOf("work.view-own") ?? -1) >= 0 ||
+      (user?.capabilities.indexOf("projects.manage") ?? -1) >= 0 ? (
+      <ChangeRequestsPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === APPROVAL_ROUTES.request) {
+    return (user?.capabilities.indexOf("work.view-own") ?? -1) >= 0 ||
+      (user?.capabilities.indexOf("approvals.view") ?? -1) >= 0 ? (
+      <ChangeRequestDetailPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === APPROVAL_ROUTES.queue) {
+    return (user?.capabilities.indexOf("approvals.view") ?? -1) >= 0 ? (
+      <ApprovalQueuePage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
+  if (route.view === APPROVAL_ROUTES.detail) {
+    return (user?.capabilities.indexOf("approvals.view") ?? -1) >= 0 ? (
+      <ApprovalDetailPage />
+    ) : (
+      <AccessDeniedPage onBack={back} />
+    );
+  }
   if (
     route.view === TIME_ROUTES.dashboard ||
     route.view === TIME_ROUTES.daily ||
@@ -312,6 +455,8 @@ const createFeatureServices = (
   const timeRepository = new TimeEntriesRepository(client);
   const taskActionsRepository = new TaskActionsRepository(client);
   const learningRepository = new LearningAssignmentsRepository(client);
+  const projectCostsRepository = new ProjectCostsRepository(client);
+  const statusReportsRepository = new ProjectStatusReportsRepository(client);
   const capabilities = new UserCapabilityService(
     client,
     employeesRepository,
@@ -333,6 +478,22 @@ const createFeatureServices = (
       return parseConfigNumber(configured?.value ?? "") ?? 24;
     },
   );
+  const metrics = new MetricsService(
+    projectsRepository,
+    workItemsRepository,
+    timeRepository,
+    qualityRepository,
+    projectCostsRepository,
+    financialsRepository,
+  );
+  const closureReadiness = new ClosureReadinessService(
+    workItemsRepository,
+    timeRepository,
+    qualityRepository,
+    approvalsRepository,
+    risksIssuesRepository,
+    statusReportsRepository,
+  );
   return {
     capabilities,
     services: {
@@ -351,6 +512,7 @@ const createFeatureServices = (
         timeRepository,
         risksIssuesRepository,
         capabilities,
+        closureReadiness,
       ),
       planning: new PlanningService(
         projectsRepository,
@@ -395,6 +557,39 @@ const createFeatureServices = (
         timeRepository,
         capabilities,
       ),
+      changes: new ChangeManagementService(
+        changesRepository,
+        approvalsRepository,
+        projectsRepository,
+        workItemsRepository,
+        employeesRepository,
+        qualityRepository,
+        timeRepository,
+        capabilities,
+        metrics,
+      ),
+      quality: new QualityGovernanceService(
+        qualityRepository,
+        approvalsRepository,
+        projectsRepository,
+        workItemsRepository,
+        changesRepository,
+        timeRepository,
+        employeesRepository,
+        capabilities,
+      ),
+      risks: new RiskManagementService(
+        risksIssuesRepository,
+        projectsRepository,
+        capabilities,
+      ),
+      statusReports: new ProjectStatusReportService(
+        statusReportsRepository,
+        projectsRepository,
+        workItemsRepository,
+        capabilities,
+      ),
+      closureReadiness,
     },
   };
 };

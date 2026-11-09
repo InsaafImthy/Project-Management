@@ -11,6 +11,11 @@ import type {
   TimeManagementService,
   ResourceManagementService,
   LearningManagementService,
+  ChangeManagementService,
+  QualityGovernanceService,
+  RiskManagementService,
+  ProjectStatusReportService,
+  ClosureReadinessService,
 } from "../services/domain";
 
 export interface IPmoFeatureServices {
@@ -25,6 +30,11 @@ export interface IPmoFeatureServices {
   readonly time: TimeManagementService;
   readonly resources: ResourceManagementService;
   readonly learning: LearningManagementService;
+  readonly changes: ChangeManagementService;
+  readonly quality: QualityGovernanceService;
+  readonly risks: RiskManagementService;
+  readonly statusReports: ProjectStatusReportService;
+  readonly closureReadiness: ClosureReadinessService;
 }
 
 export const PmoServicesContext = React.createContext<

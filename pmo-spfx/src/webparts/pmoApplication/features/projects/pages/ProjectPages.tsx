@@ -1022,7 +1022,8 @@ const TeamPanel = ({
 
 export const ProjectWorkspacePage = (): React.ReactElement => {
   const { route, navigate } = usePmoRoute();
-  const { projects } = usePmoServices();
+  const { projects, risks, quality, statusReports, closureReadiness } =
+    usePmoServices();
   const user = usePmoCurrentUser();
   const interactions = usePmoInteractions();
   const projectId = Number(route.parameters.projectId);
@@ -1032,6 +1033,11 @@ export const ProjectWorkspacePage = (): React.ReactElement => {
     [],
   );
   const [approverId, setApproverId] = React.useState<number>();
+  const [riskCount, setRiskCount] = React.useState(0);
+  const [qualityCount, setQualityCount] = React.useState(0);
+  const [reportCount, setReportCount] = React.useState(0);
+  const [readiness, setReadiness] =
+    React.useState<Awaited<ReturnType<typeof closureReadiness.check>>>();
   const load = () => {
     if (!projectId) {
       setError("A project ID is required.");
@@ -1046,6 +1052,18 @@ export const ProjectWorkspacePage = (): React.ReactElement => {
       .then((page) =>
         setCandidates(page.items.filter((employee) => employee.isApprover)),
       );
+    void risks
+      .list({ projectId, openOnly: true })
+      .then((page) => setRiskCount(page.items.length));
+    void quality
+      .list({ projectId, openOnly: true })
+      .then((page) => setQualityCount(page.items.length));
+    void statusReports
+      .list({ projectId })
+      .then((page) => setReportCount(page.items.length));
+    void closureReadiness
+      .check(projectId, { requireApprovedStatusReport: true })
+      .then(setReadiness);
   };
   React.useEffect(load, [projectId]);
   if (error)
@@ -1258,11 +1276,74 @@ export const ProjectWorkspacePage = (): React.ReactElement => {
                   </p>
                 </SummaryCard>
                 <SummaryCard title="Current action items">
+                  <Stack direction="horizontal" gap="sm" wrap>
+                    <AppButton
+                      text={`${riskCount} open risks, issues, or blockers`}
+                      onClick={() =>
+                        navigate({
+                          view: "risk-list",
+                          parameters: { projectId: String(project.id) },
+                          query: {
+                            view: "risk-list",
+                            projectId: String(project.id),
+                            open: "true",
+                          },
+                        })
+                      }
+                    />
+                    <AppButton
+                      text={`${qualityCount} open quality items`}
+                      onClick={() =>
+                        navigate({
+                          view: "quality-list",
+                          parameters: { projectId: String(project.id) },
+                          query: {
+                            view: "quality-list",
+                            projectId: String(project.id),
+                            open: "true",
+                          },
+                        })
+                      }
+                    />
+                    <AppButton
+                      text={`${reportCount} status reports`}
+                      onClick={() =>
+                        navigate({
+                          view: "status-report-list",
+                          parameters: { projectId: String(project.id) },
+                          query: {
+                            view: "status-report-list",
+                            projectId: String(project.id),
+                          },
+                        })
+                      }
+                    />
+                  </Stack>
+                </SummaryCard>
+                <SummaryCard title="Closure readiness">
                   <p>
-                    Baseline, status and team actions are shown here. Planning,
-                    time, risks, reports and documents are enabled in their
-                    dedicated stages.
+                    {readiness?.ready
+                      ? "All configured mandatory checks currently pass."
+                      : `${readiness?.blockingItems.length ?? 0} closure categories are blocking submission.`}
                   </p>
+                  {readiness?.blockingItems.length ? (
+                    <ul>
+                      {readiness.blockingItems.map((item) => (
+                        <li key={item.category}>
+                          {item.count} — {item.message}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {readiness?.nonBlockingItems.length ? (
+                    <ul>
+                      {readiness.nonBlockingItems.map((item) => (
+                        <li key={item.category}>
+                          {item.count} — {item.message}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </SummaryCard>
               </Stack>
             ),

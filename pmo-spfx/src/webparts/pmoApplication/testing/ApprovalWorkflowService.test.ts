@@ -1,7 +1,15 @@
 import { PMO_FIELDS as F, PMO_LISTS } from "../config/sharePointSchema";
-import type { IPmoApprovalRequest, IPmoProject } from "../models/domain";
+import type {
+  IPmoApprovalRequest,
+  IPmoChangeRequest,
+  IPmoProject,
+  IPmoQualityItem,
+  IPmoTimeEntry,
+  IPmoWorkItem,
+} from "../models/domain";
 import {
   ApprovalWorkflowService,
+  type IApprovalSourceRepositories,
   type IApprovalWorkflowActor,
 } from "../services/domain/ApprovalWorkflowService";
 
@@ -213,5 +221,276 @@ describe("ApprovalWorkflowService", () => {
         segregationOfDuties: true,
       }),
     ).rejects.toThrow(/different people/);
+  });
+
+  it.each([
+    ["Project Baseline", PMO_LISTS.projects, F.projects.BaselineVersion],
+    ["Execution Plan", PMO_LISTS.projects, F.projects.CurrentPlanVersion],
+    ["Task Change", PMO_LISTS.changeRequests, F.workItems.PlanVersion],
+    [
+      "Project Variation",
+      PMO_LISTS.changeRequests,
+      F.projects.CurrentPlanVersion,
+    ],
+    ["QA Exception", PMO_LISTS.qualityItems, F.qualityItems.Status],
+    ["Project Closure", PMO_LISTS.projects, F.projects.Status],
+    ["Time Correction", PMO_LISTS.timeEntries, F.timeEntries.EntryStatus],
+  ] as const)(
+    "applies %s through the shared approval workflow",
+    async (approvalType, sourceList, expectedField) => {
+      let approval: IPmoApprovalRequest = {
+        id: 19,
+        etag: '"approval-1"',
+        title: approvalType,
+        approvalNumber: "APR-2026-00019",
+        approvalType,
+        sourceList,
+        sourceItemId: 7,
+        projectId: 7,
+        projectCode: "PRJ-2026-00007",
+        requestedBy: requestor,
+        requestedOn: new Date("2026-11-08T09:00:00Z"),
+        approver,
+        approvalStatus: "Submitted",
+        escalationLevel: 0,
+        flowProcessingStatus: "New",
+      };
+      const sourceWrites: Record<string, unknown>[] = [];
+      const project = {
+        ...makeProject(),
+        status:
+          approvalType === "Execution Plan"
+            ? "Approved"
+            : approvalType === "Project Closure"
+              ? "Active"
+              : "Pending Baseline Approval",
+      } as IPmoProject;
+      const change = {
+        id: 7,
+        etag: '"change-1"',
+        title: "Change",
+        requestNumber: "CR-2026-00007",
+        requestType:
+          approvalType === "Project Variation"
+            ? "Project Variation"
+            : "Additional Effort",
+        projectId: 7,
+        projectCode: "PRJ-2026-00007",
+        workItemId: approvalType === "Task Change" ? 11 : undefined,
+        requestedBy: requestor,
+        requestedOn: new Date(),
+        reasonCategory: "Estimation Error",
+        reasonDetails: "Reason",
+        currentEffortHours: 10,
+        additionalHoursRequested: 2,
+        proposedEffortHours: 12,
+        impactSummary: "Impact",
+        requestStatus: "Submitted",
+      } as unknown as IPmoChangeRequest;
+      const workItem = {
+        id: 11,
+        etag: '"work-1"',
+        approvedEffortHours: 10,
+        plannedEnd: new Date("2026-12-31T00:00:00Z"),
+        planVersion: 1,
+        lastActionId: undefined,
+      } as unknown as IPmoWorkItem;
+      const quality = {
+        id: 7,
+        etag: '"quality-1"',
+        status: "In Review",
+      } as unknown as IPmoQualityItem;
+      const time = {
+        id: 7,
+        etag: '"time-1"',
+        isLocked: true,
+        entryStatus: "Submitted",
+      } as unknown as IPmoTimeEntry;
+      const sources = {
+        projects: {
+          getById: async (): Promise<IPmoProject> => project,
+          update: async (
+            _id: number,
+            values: Readonly<Record<string, unknown>>,
+          ): Promise<IPmoProject> => {
+            sourceWrites.push(values);
+            return project;
+          },
+        },
+        workItems: {
+          getById: async (): Promise<IPmoWorkItem> => workItem,
+          update: async (
+            _id: number,
+            values: Readonly<Record<string, unknown>>,
+          ): Promise<IPmoWorkItem> => {
+            sourceWrites.push(values);
+            return workItem;
+          },
+        },
+        changeRequests: {
+          getById: async (): Promise<IPmoChangeRequest> => change,
+          update: async (
+            _id: number,
+            values: Readonly<Record<string, unknown>>,
+          ): Promise<IPmoChangeRequest> => {
+            sourceWrites.push(values);
+            return change;
+          },
+        },
+        qualityItems: {
+          getById: async (): Promise<IPmoQualityItem> => quality,
+          update: async (
+            _id: number,
+            values: Readonly<Record<string, unknown>>,
+          ): Promise<IPmoQualityItem> => {
+            sourceWrites.push(values);
+            return quality;
+          },
+        },
+        timeEntries: {
+          getById: async (): Promise<IPmoTimeEntry> => time,
+          update: async (
+            _id: number,
+            values: Readonly<Record<string, unknown>>,
+          ): Promise<IPmoTimeEntry> => {
+            sourceWrites.push(values);
+            return time;
+          },
+        },
+      } as IApprovalSourceRepositories;
+      const workflow = new ApprovalWorkflowService(
+        {
+          getById: async (): Promise<IPmoApprovalRequest> => approval,
+          create: async (): Promise<IPmoApprovalRequest> => approval,
+          update: async (
+            _id: number,
+            values: Readonly<Record<string, unknown>>,
+          ): Promise<IPmoApprovalRequest> => {
+            approval = {
+              ...approval,
+              etag: `"approval-${Math.random()}"`,
+              approvalStatus:
+                (values[F.approvalRequests.ApprovalStatus] as
+                  | IPmoApprovalRequest["approvalStatus"]
+                  | undefined) ?? approval.approvalStatus,
+              flowProcessingStatus:
+                (values[F.approvalRequests.FlowProcessingStatus] as
+                  | IPmoApprovalRequest["flowProcessingStatus"]
+                  | undefined) ?? approval.flowProcessingStatus,
+              decision:
+                (values[F.approvalRequests.Decision] as
+                  | IPmoApprovalRequest["decision"]
+                  | undefined) ?? approval.decision,
+            };
+            return approval;
+          },
+        },
+        sources,
+      );
+      const completed = await workflow.decide(19, approver, "Approve");
+      expect(completed.flowProcessingStatus).toBe("Completed");
+      expect(sourceWrites.some((values) => expectedField in values)).toBe(true);
+      if (approvalType === "QA Exception") {
+        expect(
+          sourceWrites.some((values) => F.qualityItems.TestResult in values),
+        ).toBe(false);
+      }
+    },
+  );
+
+  it("requires comments for non-approval decisions and keeps clarification open", async () => {
+    const harness = createHarness();
+    const created = await harness.service.create({
+      title: "Clarification",
+      approvalType: "Project Baseline",
+      sourceList: PMO_LISTS.projects,
+      sourceItemId: 7,
+      projectId: 7,
+      projectCode: "PRJ-2026-00007",
+      requestedBy: requestor,
+      approver,
+      segregationOfDuties: true,
+    });
+    await expect(
+      harness.service.decide(created.id, approver, "Reject"),
+    ).rejects.toThrow(/requires a decision comment/);
+    const clarified = await harness.service.decide(
+      created.id,
+      approver,
+      "Request Clarification",
+      "Please provide the recovery plan.",
+    );
+    expect(clarified.approvalStatus).toBe("Clarification Requested");
+    expect(clarified.flowProcessingStatus).toBe("Waiting");
+  });
+
+  it("leaves a failed decision retryable and never retries a completed decision", async () => {
+    let approval: IPmoApprovalRequest = {
+      id: 41,
+      etag: '"approval-1"',
+      title: "Retry baseline",
+      approvalNumber: "APR-2026-00041",
+      approvalType: "Project Baseline",
+      sourceList: PMO_LISTS.projects,
+      sourceItemId: 7,
+      projectId: 7,
+      projectCode: "PRJ-2026-00007",
+      requestedBy: requestor,
+      requestedOn: new Date("2026-11-08T09:00:00Z"),
+      approver,
+      approvalStatus: "Submitted",
+      escalationLevel: 0,
+      flowProcessingStatus: "New",
+    };
+    let sourceAttempts = 0;
+    const project = makeProject();
+    const workflow = new ApprovalWorkflowService(
+      {
+        getById: async (): Promise<IPmoApprovalRequest> => approval,
+        create: async (): Promise<IPmoApprovalRequest> => approval,
+        update: async (
+          _id: number,
+          values: Readonly<Record<string, unknown>>,
+        ): Promise<IPmoApprovalRequest> => {
+          approval = {
+            ...approval,
+            etag: `"approval-${sourceAttempts}-${approval.flowProcessingStatus}"`,
+            approvalStatus:
+              (values[F.approvalRequests.ApprovalStatus] as
+                | IPmoApprovalRequest["approvalStatus"]
+                | undefined) ?? approval.approvalStatus,
+            flowProcessingStatus:
+              (values[F.approvalRequests.FlowProcessingStatus] as
+                | IPmoApprovalRequest["flowProcessingStatus"]
+                | undefined) ?? approval.flowProcessingStatus,
+            decision:
+              (values[F.approvalRequests.Decision] as
+                | IPmoApprovalRequest["decision"]
+                | undefined) ?? approval.decision,
+          };
+          return approval;
+        },
+      },
+      {
+        projects: {
+          getById: async (): Promise<IPmoProject> => project,
+          update: async (): Promise<IPmoProject> => {
+            sourceAttempts += 1;
+            if (sourceAttempts === 1) throw new Error("ETag conflict");
+            return { ...project, status: "Approved" };
+          },
+        },
+      } as unknown as IApprovalSourceRepositories,
+    );
+    await expect(workflow.decide(41, approver, "Approve")).rejects.toThrow(
+      "ETag conflict",
+    );
+    expect(approval.flowProcessingStatus).toBe("Failed");
+    expect(approval.decision).toBe("Approve");
+    await workflow.retry(41, approver);
+    expect(approval.flowProcessingStatus).toBe("Completed");
+    expect(sourceAttempts).toBe(2);
+    await expect(workflow.retry(41, approver)).rejects.toThrow(/Only a failed/);
+    expect(sourceAttempts).toBe(2);
   });
 });
