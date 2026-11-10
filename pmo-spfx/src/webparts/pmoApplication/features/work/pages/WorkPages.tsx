@@ -418,7 +418,7 @@ export const TaskDetailPage = (): React.ReactElement => {
   return (
     <ContentContainer>
       <EntityDetailLayout
-        actions={
+        header={
           <PageHeader
             title={item.title}
             subtitle={`${item.workItemCode ?? `ID-${item.id}`} · ${item.projectCode}`}
@@ -426,16 +426,16 @@ export const TaskDetailPage = (): React.ReactElement => {
               { text: "My Work", onClick: back },
               { text: item.title },
             ]}
-            commands={
-              canAct ? (
-                <AppButton
-                  variant="primary"
-                  text="Task action"
-                  onClick={() => setActionOpen(true)}
-                />
-              ) : undefined
-            }
           />
+        }
+        actions={
+          canAct ? (
+            <AppButton
+              variant="primary"
+              text="Task action"
+              onClick={() => setActionOpen(true)}
+            />
+          ) : undefined
         }
         summary={
           <Stack direction="horizontal" gap="lg" wrap>
@@ -445,10 +445,10 @@ export const TaskDetailPage = (): React.ReactElement => {
             <HoursDisplay value={item.forecastEffortHours} />
           </Stack>
         }
-        sections={[
+        tabs={[
           {
             key: "details",
-            title: "Task details",
+            label: "Details",
             content: (
               <Stack gap="sm">
                 <p>{item.description ?? "No description"}</p>
@@ -474,7 +474,7 @@ export const TaskDetailPage = (): React.ReactElement => {
           },
           {
             key: "actions",
-            title: "Task Action history",
+            label: "Action history",
             content: (
               <Timeline
                 ariaLabel="Task Action history"

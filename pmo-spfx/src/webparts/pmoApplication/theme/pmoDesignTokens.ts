@@ -47,7 +47,7 @@ export interface IPmoDesignTokens {
     >;
     readonly weights: Readonly<Record<"regular" | "semibold" | "bold", number>>;
     readonly lineHeights: Readonly<
-      Record<"compact" | "body" | "comfortable" | "heading", number>
+      Record<"compact" | "body" | "comfortable" | "heading", string>
     >;
   };
   readonly spacing: Readonly<
@@ -158,10 +158,18 @@ export const createPmoDesignTokens = (theme: ITheme): IPmoDesignTokens => ({
       display: 32,
     },
     weights: { regular: 400, semibold: 600, bold: 700 },
-    lineHeights: { compact: 1.2, body: 1.4, comfortable: 1.5, heading: 1.25 },
+    // mergeStyleSets serializes numeric line-height values with a `px` unit.
+    // Keep these unitless values as strings so all type scales retain their
+    // intended vertical rhythm instead of collapsing to one or two pixels.
+    lineHeights: {
+      compact: "1.2",
+      body: "1.4",
+      comfortable: "1.5",
+      heading: "1.25",
+    },
   },
   spacing: { none: 0, xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
-  radii: { none: 0, small: 2, medium: 4, large: 8, pill: 999 },
+  radii: { none: 0, small: 6, medium: 10, large: 16, pill: 999 },
   borders: { width: 1, strongWidth: 2, dividerWidth: 1 },
   shadows: {
     none: "none",

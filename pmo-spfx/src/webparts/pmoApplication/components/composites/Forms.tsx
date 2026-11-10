@@ -7,8 +7,52 @@ import {
   PanelType,
 } from "@fluentui/react";
 import { PMO_BEFORE_NAVIGATE_EVENT } from "../../routing/pmoRoutes";
+import { pmoDesignTokens as t } from "../../theme/pmoDesignTokens";
 import { AppButton, TextArea } from "../primitives";
 import { compositeStyles as styles } from "./compositeStyles";
+
+const phoneMedia = `@media (max-width: ${t.breakpoints.phone}px)`;
+
+const formDialogStyles = {
+  main: {
+    borderRadius: t.radii.large,
+    boxShadow: t.shadows.high,
+    maxWidth: 560,
+    width: "calc(100% - 32px)",
+    selectors: {
+      [phoneMedia]: {
+        borderRadius: 0,
+        height: "100dvh",
+        maxWidth: "100vw",
+        overflowY: "auto",
+        width: "100vw",
+      },
+    },
+  },
+};
+
+const formPanelStyles = {
+  main: {
+    boxShadow: t.shadows.high,
+    selectors: {
+      [phoneMedia]: { width: "100vw" },
+    },
+  },
+  header: {
+    borderBottom: `${t.borders.dividerWidth}px solid ${t.colors.neutral.border}`,
+    padding: `${t.spacing.lg}px ${t.spacing.xl}px`,
+  },
+  headerText: {
+    color: t.colors.neutral.strong,
+    fontSize: t.typography.sizes.subtitle,
+    fontWeight: String(t.typography.weights.semibold),
+  },
+  content: { padding: t.spacing.xl },
+  footer: {
+    borderTop: `${t.borders.dividerWidth}px solid ${t.colors.neutral.border}`,
+    padding: `${t.spacing.md}px ${t.spacing.xl}px`,
+  },
+};
 
 export interface IValidationIssue {
   readonly key: string;
@@ -106,10 +150,13 @@ export const FormDialog = ({
       onDismiss={saving ? undefined : onDismiss}
       dialogContentProps={{ type: DialogType.normal, title }}
       modalProps={{ isBlocking: Boolean(saving) }}
+      styles={formDialogStyles}
     >
-      <ValidationSummary ref={summaryRef} issues={validationIssues} />
-      {children}
-      <DialogFooter>
+      <div className={styles.formDialogBody}>
+        <ValidationSummary ref={summaryRef} issues={validationIssues} />
+        {children}
+      </div>
+      <DialogFooter className={styles.formDialogFooter}>
         <AppButton
           variant="primary"
           text={saving ? "Saving…" : submitLabel}
@@ -154,8 +201,9 @@ export const FormPanel = ({
       isBlocking={Boolean(saving)}
       onDismiss={saving ? undefined : onDismiss}
       closeButtonAriaLabel="Close"
+      styles={formPanelStyles}
       onRenderFooterContent={() => (
-        <div className={styles.formActions}>
+        <div className={`${styles.formActions} ${styles.formPanelActions}`}>
           <AppButton
             variant="primary"
             text={saving ? "Saving…" : submitLabel}
@@ -167,8 +215,10 @@ export const FormPanel = ({
       )}
       isFooterAtBottom
     >
-      <ValidationSummary ref={summaryRef} issues={validationIssues} />
-      {children}
+      <div className={styles.formPanelBody}>
+        <ValidationSummary ref={summaryRef} issues={validationIssues} />
+        {children}
+      </div>
     </Panel>
   );
 };
@@ -185,7 +235,7 @@ export const FormPageLayout = ({
   readonly actions: React.ReactNode;
   readonly validationIssues?: readonly IValidationIssue[];
 }): React.ReactElement => (
-  <div className={styles.page}>
+  <div className={`${styles.page} ${styles.formPageLayout}`}>
     {header}
     <main className={styles.formPage}>
       <ValidationSummary issues={validationIssues} />
@@ -206,11 +256,15 @@ export const FormSection = ({
   readonly children: React.ReactNode;
 }): React.ReactElement => (
   <fieldset className={styles.formSection}>
-    <legend className={styles.formLegend}>{title}</legend>
-    {description ? (
-      <p className={styles.formSectionDescription}>{description}</p>
-    ) : null}
-    {children}
+    <legend className={styles.formLegend}>
+      <span>{title}</span>
+    </legend>
+    <div className={styles.formSectionBody}>
+      {description ? (
+        <p className={styles.formSectionDescription}>{description}</p>
+      ) : null}
+      {children}
+    </div>
   </fieldset>
 );
 
@@ -261,9 +315,10 @@ export const ConfirmDialog = ({
         subText: undefined,
       }}
       modalProps={{ isBlocking: true }}
+      styles={formDialogStyles}
     >
-      <div>{message}</div>
-      <DialogFooter>
+      <div className={styles.confirmDialogBody}>{message}</div>
+      <DialogFooter className={styles.formDialogFooter}>
         <AppButton
           variant={destructive ? "danger" : "primary"}
           text={confirmLabel}

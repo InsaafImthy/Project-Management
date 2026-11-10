@@ -984,14 +984,14 @@ export const ApprovalDetailPage = (): React.ReactElement => {
     <>
       <ContentContainer>
         <EntityDetailLayout
-          actions={
+          header={
             <PageHeader
               title={approval.title}
               subtitle={`${approval.approvalNumber} · ${approval.approvalType}`}
               breadcrumbs={[{ text: "My approvals" }]}
-              commands={<AppButton text="Back" onClick={back} />}
             />
           }
+          actions={<AppButton text="Back" onClick={back} />}
           summary={
             <DescriptionList
               items={[

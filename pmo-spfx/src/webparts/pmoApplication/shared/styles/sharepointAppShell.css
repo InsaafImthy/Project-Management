@@ -1,0 +1,91 @@
+/*
+ * PMO SharePoint application shell
+ *
+ * This stylesheet is deliberately global. It is only injected when the PMO
+ * web part is on the page, and it lets this application own the viewport while
+ * keeping application-specific styling in CSS modules.
+ */
+
+html,
+body,
+#spPageChromeAppDiv,
+#spPageCanvasContent,
+#spPageCanvasContent > div,
+#spCanvas,
+.SPCanvas,
+.CanvasComponent {
+  height: 100% !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+}
+
+/* The PMO application owns scrolling; SharePoint's outer page must not. */
+body,
+#spPageCanvasContent {
+  margin: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+/* Remove canvas width, spacing, and rounded-container constraints. */
+#spPageCanvasContent,
+#workbenchPageContent,
+#workbenchPageContent > div,
+.sp-pageLayout-sideNav,
+.CanvasZone,
+.CanvasZoneContainer,
+.CanvasZoneSectionContainer,
+.CanvasSection,
+.CanvasSection-col,
+.CanvasSection-sm12,
+.CanvasSection--read,
+.CanvasSection-xl12,
+.ControlZone,
+[data-automation-id="CanvasZone"],
+[data-automation-id="CanvasSection"],
+[data-automation-id="CanvasControl"],
+[data-automation-id="ControlZone"] {
+  border-radius: 0 !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  max-width: none !important;
+  padding: 0 !important;
+  width: 100% !important;
+}
+
+/* SharePoint chrome is intentionally hidden on the PMO application page. */
+#SuiteNavWrapper,
+#CommentsWrapper,
+#spSiteHeader,
+#sp-appBar,
+#spLeftNav,
+#spCommandBar,
+#O365_MainLink_NavMenu,
+#O365_MainLink_Settings,
+.commandBarWrapper,
+button[data-automationid="editButton"],
+button[name="Edit"],
+div[role="toolbar"][aria-label="Edit"],
+div[aria-label="Page commands"],
+div[role="contentinfo"],
+div[data-automation-id="pageFooter"],
+div[data-automation-id="pageFooterContainer"],
+div[data-automation-id="sp-page-footer"] {
+  display: none !important;
+  height: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+/* Site navigation layouts otherwise preserve their own viewport wrapper. */
+.sp-pageLayout-sideNav,
+div[class*="sp-pageLayout-sideNav"] {
+  clip-path: inset(0 round 0) !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  overflow: hidden !important;
+}

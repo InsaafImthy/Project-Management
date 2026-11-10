@@ -60,9 +60,19 @@ Do not weaken TypeScript, lint, or tests to package the application.
    provision or modify production permissions.
 4. Create a modern SharePoint page in the PMO site, add a one-column full-width section, add
    **PmoApplication**, and publish the page. Full-width sections require a communication site.
+   The web part also supports a Single Part App Page and includes its own full-screen canvas
+   overrides for application-style hosting.
 5. Assign test users to the exact PMO SharePoint groups and maintain matching active Employee rows
    where business eligibility is required.
 6. Run [`docs/MANUAL-UAT.md`](docs/MANUAL-UAT.md) with separate tenant users before production use.
+
+### Optional site-specific shell overrides
+
+On initialization, the web part loads
+`<site-url>/SiteAssets/css/developer.css` after the bundled application-shell stylesheet. Upload
+[`docs/developer.css`](docs/developer.css) to that SiteAssets location (it can remain empty). Keep
+all essential full-screen behavior in the package; reserve this external file for tenant-specific
+SharePoint corrections only.
 
 No tenant deployment is performed by the build scripts.
 

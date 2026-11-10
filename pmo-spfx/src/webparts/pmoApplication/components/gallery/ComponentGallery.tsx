@@ -421,6 +421,7 @@ export const ComponentGallery = (): React.ReactElement => {
                 </SummaryCard>
                 <SummaryCard title="Action queue">
                   <ActionQueue
+                    contained
                     items={[
                       {
                         key: "review",

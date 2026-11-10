@@ -1,0 +1,9 @@
+/*
+ * Optional PMO SharePoint site override.
+ *
+ * Upload this file to SiteAssets/css/developer.css when deploying the PMO
+ * application. It is loaded after the bundled application shell CSS.
+ *
+ * Keep normal PMO component and full-screen shell styles in source control
+ * under src/. Add only tenant- or site-specific SharePoint corrections here.
+ */

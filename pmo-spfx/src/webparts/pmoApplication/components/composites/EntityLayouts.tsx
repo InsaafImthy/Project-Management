@@ -25,13 +25,13 @@ export const EntityListPage = <T,>({
   onCreate,
   ...tableProps
 }: IEntityListPageProps<T>): React.ReactElement => (
-  <div className={styles.page}>
+  <div className={`${styles.page} ${styles.entityListPage}`}>
     <PageHeader
       title={title}
       subtitle={subtitle}
       breadcrumbs={breadcrumbs}
       commands={
-        <>
+        <div className={styles.entityHeaderCommands}>
           {commands}
           {onCreate ? (
             <AppButton
@@ -40,7 +40,7 @@ export const EntityListPage = <T,>({
               onClick={onCreate}
             />
           ) : null}
-        </>
+        </div>
       }
     />
     <DataTable {...tableProps} />
@@ -60,6 +60,8 @@ export interface IEntityDetailSection {
 }
 
 export interface IEntityDetailLayoutProps {
+  /** Title, breadcrumb, and concise record context shown before the detail band. */
+  readonly header?: React.ReactNode;
   readonly summary: React.ReactNode;
   readonly actions?: React.ReactNode;
   readonly tabs?: readonly IEntityDetailTab[];
@@ -69,42 +71,67 @@ export interface IEntityDetailLayoutProps {
 
 /** Detail-page skeleton supporting either tabbed or sequential information architecture. */
 export const EntityDetailLayout = ({
+  header,
   summary,
   actions,
   tabs,
   sections,
   relatedRecords,
 }: IEntityDetailLayoutProps): React.ReactElement => (
-  <div className={styles.page}>
+  <div className={`${styles.page} ${styles.entityDetailLayout}`}>
+    {header ? <div className={styles.detailHeader}>{header}</div> : null}
     <section
       className={`${styles.surface} ${styles.detailSummary}`}
       aria-label="Summary"
     >
-      <Stack gap="lg">
-        {actions}
+      <Stack gap="md" className={styles.detailSummaryContent}>
         {summary}
       </Stack>
+      {actions ? <div className={styles.detailActions}>{actions}</div> : null}
     </section>
-    <div className={styles.detailContent}>
-      {tabs?.length ? (
-        <Pivot>
-          {tabs.map((tab) => (
-            <PivotItem key={tab.key} headerText={tab.label} itemKey={tab.key}>
-              {tab.content}
-            </PivotItem>
-          ))}
-        </Pivot>
-      ) : (
-        sections?.map((section) => (
-          <section key={section.key} aria-labelledby={`section-${section.key}`}>
-            <h2 id={`section-${section.key}`}>{section.title}</h2>
-            {section.content}
-          </section>
-        ))
-      )}
+    <div
+      className={
+        relatedRecords ? styles.detailBodyWithRelated : styles.detailBody
+      }
+    >
+      <div className={styles.detailContent}>
+        {tabs?.length ? (
+          <div className={styles.detailTabsRegion}>
+            <Pivot className={styles.detailTabs}>
+              {tabs.map((tab) => (
+                <PivotItem
+                  key={tab.key}
+                  headerText={tab.label}
+                  itemKey={tab.key}
+                >
+                  <div className={styles.detailTabContent}>{tab.content}</div>
+                </PivotItem>
+              ))}
+            </Pivot>
+          </div>
+        ) : (
+          sections?.map((section) => (
+            <section
+              className={styles.detailSection}
+              key={section.key}
+              aria-labelledby={`section-${section.key}`}
+            >
+              <h2
+                className={styles.detailSectionTitle}
+                id={`section-${section.key}`}
+              >
+                {section.title}
+              </h2>
+              {section.content}
+            </section>
+          ))
+        )}
+      </div>
+      {relatedRecords ? (
+        <aside className={styles.detailRelated} aria-label="Related records">
+          {relatedRecords}
+        </aside>
+      ) : null}
     </div>
-    {relatedRecords ? (
-      <aside aria-label="Related records">{relatedRecords}</aside>
-    ) : null}
   </div>
 );

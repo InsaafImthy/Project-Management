@@ -228,6 +228,10 @@ export const ProjectDashboardPage = (): React.ReactElement => {
               title="At risk"
               value={summary.atRisk}
               helpText="Amber and Red health"
+              status={{
+                label: summary.atRisk ? "Review" : "Clear",
+                tone: summary.atRisk ? "warning" : "success",
+              }}
               onDrillDown={() => drill({ atRisk: "true" })}
             />
             <KpiCard
@@ -1319,7 +1323,7 @@ export const ProjectWorkspacePage = (): React.ReactElement => {
   return (
     <ContentContainer>
       <EntityDetailLayout
-        actions={
+        header={
           <PageHeader
             title={project.title}
             subtitle={`${project.projectCode ?? "Project code pending"} · ${project.status}`}
@@ -1335,98 +1339,100 @@ export const ProjectWorkspacePage = (): React.ReactElement => {
               },
               { text: project.title },
             ]}
-            commands={
-              <Stack direction="horizontal" gap="sm" wrap>
-                {canManage ? (
+          />
+        }
+        actions={
+          canManage ? (
+            <Stack direction="horizontal" gap="sm" wrap>
+              {canManage ? (
+                <AppButton
+                  text="Refresh metrics"
+                  onClick={() => void refreshMetrics()}
+                />
+              ) : null}
+              {canManage &&
+              (project.status === "Draft" ||
+                project.status === "Active" ||
+                project.status === "On Hold") ? (
+                <SelectInput
+                  label="Approver"
+                  value={approverId}
+                  options={[
+                    { key: "", text: "Select approver" },
+                    ...candidates.map((employee) => ({
+                      key: employee.id,
+                      text: employee.name,
+                    })),
+                  ]}
+                  onChange={(value) => setApproverId(Number(value))}
+                />
+              ) : null}
+              {canManage && project.status === "Draft" ? (
+                <>
                   <AppButton
-                    text="Refresh metrics"
-                    onClick={() => void refreshMetrics()}
-                  />
-                ) : null}
-                {canManage &&
-                (project.status === "Draft" ||
-                  project.status === "Active" ||
-                  project.status === "On Hold") ? (
-                  <SelectInput
-                    label="Approver"
-                    value={approverId}
-                    options={[
-                      { key: "", text: "Select approver" },
-                      ...candidates.map((employee) => ({
-                        key: employee.id,
-                        text: employee.name,
-                      })),
-                    ]}
-                    onChange={(value) => setApproverId(Number(value))}
-                  />
-                ) : null}
-                {canManage && project.status === "Draft" ? (
-                  <>
-                    <AppButton
-                      text="Edit draft"
-                      onClick={() =>
-                        navigate({
+                    text="Edit draft"
+                    onClick={() =>
+                      navigate({
+                        view: PROJECT_ROUTES.onboarding,
+                        parameters: { projectId: String(project.id) },
+                        query: {
                           view: PROJECT_ROUTES.onboarding,
-                          parameters: { projectId: String(project.id) },
-                          query: {
-                            view: PROJECT_ROUTES.onboarding,
-                            projectId: String(project.id),
-                          },
-                        })
-                      }
-                    />
-                    <AppButton
-                      variant="primary"
-                      text="Submit baseline"
-                      onClick={submitBaseline}
-                    />
-                  </>
-                ) : null}
-                {canManage && project.status === "Approved" ? (
+                          projectId: String(project.id),
+                        },
+                      })
+                    }
+                  />
                   <AppButton
                     variant="primary"
-                    text="Activate"
+                    text="Submit baseline"
+                    onClick={submitBaseline}
+                  />
+                </>
+              ) : null}
+              {canManage && project.status === "Approved" ? (
+                <AppButton
+                  variant="primary"
+                  text="Activate"
+                  onClick={() => status("Active")}
+                />
+              ) : null}
+              {canManage && project.status === "Active" ? (
+                <>
+                  <AppButton
+                    text="Place on hold"
+                    onClick={() => status("On Hold")}
+                  />
+                  <AppButton
+                    text="Submit closure"
+                    onClick={() => status("Pending Closure")}
+                  />
+                  <AppButton
+                    variant="danger"
+                    text="Cancel"
+                    onClick={() => status("Cancelled")}
+                  />
+                </>
+              ) : null}
+              {canManage && project.status === "On Hold" ? (
+                <>
+                  <AppButton
+                    variant="primary"
+                    text="Resume"
                     onClick={() => status("Active")}
                   />
-                ) : null}
-                {canManage && project.status === "Active" ? (
-                  <>
-                    <AppButton
-                      text="Place on hold"
-                      onClick={() => status("On Hold")}
-                    />
-                    <AppButton
-                      text="Submit closure"
-                      onClick={() => status("Pending Closure")}
-                    />
-                    <AppButton
-                      variant="danger"
-                      text="Cancel"
-                      onClick={() => status("Cancelled")}
-                    />
-                  </>
-                ) : null}
-                {canManage && project.status === "On Hold" ? (
-                  <>
-                    <AppButton
-                      variant="primary"
-                      text="Resume"
-                      onClick={() => status("Active")}
-                    />
-                    <AppButton
-                      text="Submit closure"
-                      onClick={() => status("Pending Closure")}
-                    />
-                    <AppButton
-                      variant="danger"
-                      text="Cancel"
-                      onClick={() => status("Cancelled")}
-                    />
-                  </>
-                ) : null}
-              </Stack>
-            }
-          />
+                  <AppButton
+                    text="Submit closure"
+                    onClick={() => status("Pending Closure")}
+                  />
+                  <AppButton
+                    variant="danger"
+                    text="Cancel"
+                    onClick={() => status("Cancelled")}
+                  />
+                </>
+              ) : null}
+            </Stack>
+          ) : undefined
         }
         summary={
           <Stack gap="md">

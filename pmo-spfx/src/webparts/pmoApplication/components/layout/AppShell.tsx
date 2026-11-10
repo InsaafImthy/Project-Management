@@ -20,7 +20,10 @@ import {
 } from "../../routing/pmoRoutes";
 import { ConfirmDialog } from "../composites/Forms";
 import { AppButton, AvatarName, IconButton } from "../primitives";
-import { layoutStyles as styles } from "./layoutStyles";
+import {
+  layoutStyles as styles,
+  navigationDrawerPanelStyles,
+} from "./layoutStyles";
 import { PmoServicesContext } from "../../context/PmoServicesContext";
 import type { IActionCenterResult } from "../../services/domain/ActionCenterService";
 import { PMO_APPLICATION_VERSION } from "../../config/environment";
@@ -70,6 +73,8 @@ export interface ISidebarProps {
   readonly collapsed: boolean;
   readonly onCollapsedChange: (collapsed: boolean) => void;
   readonly onNavigate: (item: IPmoNavigationItem) => void;
+  readonly drawer?: boolean;
+  readonly showCollapseToggle?: boolean;
 }
 
 /** Grouped capability-filtered application navigation. Visibility is not authorization. */
@@ -80,6 +85,8 @@ export const Sidebar = ({
   collapsed,
   onCollapsedChange,
   onNavigate,
+  drawer = false,
+  showCollapseToggle = true,
 }: ISidebarProps): React.ReactElement => {
   const allowed = items.filter((item) =>
     (item.requiredCapabilities ?? []).every(
@@ -97,18 +104,29 @@ export const Sidebar = ({
     ? styles.sidebarLabelCollapsed
     : styles.sidebarLabel;
   return (
-    <aside className={styles.sidebar} aria-label="Application navigation">
-      <div className={styles.sidebarBrand}>
-        <span className={hiddenLabelClass}>PMO</span>
-        <IconButton
-          className={styles.sidebarToggle}
-          ariaLabel={collapsed ? "Expand navigation" : "Collapse navigation"}
-          iconProps={{
-            iconName: collapsed ? "DoubleChevronRight" : "DoubleChevronLeft",
-          }}
-          onClick={() => onCollapsedChange(!collapsed)}
-        />
-      </div>
+    <aside
+      className={`${styles.sidebar} ${drawer ? styles.sidebarDrawer : ""}`}
+      aria-label="Application navigation"
+    >
+      {!drawer ? (
+        <div className={styles.sidebarBrand}>
+          <span className={hiddenLabelClass}>PMO</span>
+          {showCollapseToggle ? (
+            <IconButton
+              className={styles.sidebarToggle}
+              ariaLabel={
+                collapsed ? "Expand navigation" : "Collapse navigation"
+              }
+              iconProps={{
+                iconName: collapsed
+                  ? "DoubleChevronRight"
+                  : "DoubleChevronLeft",
+              }}
+              onClick={() => onCollapsedChange(!collapsed)}
+            />
+          ) : null}
+        </div>
+      ) : null}
       <nav aria-label="PMO modules">
         {Object.keys(groups).map((group) => (
           <section
@@ -152,6 +170,8 @@ export interface IAppHeaderProps {
   readonly title: string;
   readonly breadcrumbs?: readonly IPageBreadcrumb[];
   readonly userName: string;
+  readonly compact?: boolean;
+  readonly onNavigationOpen?: () => void;
 }
 
 const ActionCenterLauncher = (): React.ReactElement => {
@@ -280,16 +300,32 @@ export const AppHeader = ({
   title,
   breadcrumbs = [],
   userName,
+  compact = false,
+  onNavigationOpen,
 }: IAppHeaderProps): React.ReactElement => (
-  <header className={styles.header}>
-    <div>
+  <header className={`${styles.header} ${compact ? styles.headerCompact : ""}`}>
+    {onNavigationOpen ? (
+      <IconButton
+        className={styles.headerMenuButton}
+        ariaLabel="Open navigation"
+        iconProps={{ iconName: "GlobalNavButton" }}
+        onClick={onNavigationOpen}
+      />
+    ) : null}
+    <div className={styles.headerContext}>
       <div className={styles.headerTitle}>{title}</div>
-      {breadcrumbs.length ? <Breadcrumbs items={breadcrumbs} /> : null}
+      {!compact && breadcrumbs.length ? (
+        <Breadcrumbs items={breadcrumbs} />
+      ) : null}
     </div>
     <div className={styles.headerUser}>
-      <span className={styles.headerVersion}>v{PMO_APPLICATION_VERSION}</span>
+      {!compact ? (
+        <span className={styles.headerVersion}>v{PMO_APPLICATION_VERSION}</span>
+      ) : null}
       <ActionCenterLauncher />
-      <AvatarName name={userName} />
+      <span className={compact ? styles.headerIdentityCompact : ""}>
+        <AvatarName name={userName} />
+      </span>
     </div>
   </header>
 );
@@ -308,6 +344,49 @@ export interface IAppShellProps {
   readonly navigation?: readonly IPmoNavigationItem[];
 }
 
+type ShellLayoutMode = "desktop" | "compact" | "mobile";
+
+const getShellLayoutMode = (width: number): ShellLayoutMode => {
+  if (width < 720) return "mobile";
+  if (width < 1024) return "compact";
+  return "desktop";
+};
+
+/** Observes the rendered web-part width so embedded layouts respond to their container. */
+const useShellLayoutMode = (): [
+  React.RefObject<HTMLDivElement>,
+  ShellLayoutMode,
+] => {
+  const shellRef = React.useRef<HTMLDivElement>(null);
+  const [mode, setMode] = React.useState<ShellLayoutMode>("desktop");
+
+  React.useLayoutEffect(() => {
+    const updateMode = (width?: number): void => {
+      const measuredWidth =
+        width ?? shellRef.current?.getBoundingClientRect().width ?? 0;
+      const availableWidth =
+        measuredWidth > 0 || typeof window === "undefined"
+          ? measuredWidth
+          : window.innerWidth;
+      setMode(getShellLayoutMode(availableWidth));
+    };
+    const shell = shellRef.current;
+    updateMode();
+    if (shell && typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver((entries) => {
+        updateMode(entries[0]?.contentRect.width);
+      });
+      observer.observe(shell);
+      return () => observer.disconnect();
+    }
+    const handleWindowResize = (): void => updateMode();
+    window.addEventListener("resize", handleWindowResize);
+    return () => window.removeEventListener("resize", handleWindowResize);
+  }, []);
+
+  return [shellRef, mode];
+};
+
 /** Responsive, single-instance shell used by all routes and feature modules. */
 export const AppShell = ({
   children,
@@ -320,6 +399,14 @@ export const AppShell = ({
   const { sidebarCollapsed, setSidebarCollapsed } = usePmoDisplayPreferences();
   const { messages, dismissMessage, dialogRequest, resolveConfirmation } =
     usePmoInteractions();
+  const [shellRef, layoutMode] = useShellLayoutMode();
+  const [navigationOpen, setNavigationOpen] = React.useState(false);
+  const mobile = layoutMode === "mobile";
+  const compact = layoutMode !== "desktop";
+  const effectiveCollapsed = !mobile && (sidebarCollapsed || compact);
+  React.useEffect(() => {
+    if (!mobile) setNavigationOpen(false);
+  }, [mobile]);
   const navigateTo = (item: IPmoNavigationItem): void => {
     const next: IPmoRouteState = {
       view: item.route,
@@ -327,25 +414,32 @@ export const AppShell = ({
       query: { view: item.route },
     };
     navigate(next);
+    setNavigationOpen(false);
   };
   const activeTitle =
     navigation.filter((item) => item.route === route.view)[0]?.label ?? title;
   return (
     <div
-      className={`${styles.appShell} ${sidebarCollapsed ? styles.appShellCollapsed : ""}`}
+      ref={shellRef}
+      className={`${styles.appShell} ${mobile ? styles.appShellMobile : effectiveCollapsed ? styles.appShellCollapsed : ""}`}
     >
-      <Sidebar
-        items={navigation}
-        capabilities={user.capabilities ?? []}
-        activeRoute={route.view}
-        collapsed={sidebarCollapsed}
-        onCollapsedChange={setSidebarCollapsed}
-        onNavigate={navigateTo}
-      />
+      {!mobile ? (
+        <Sidebar
+          items={navigation}
+          capabilities={user.capabilities ?? []}
+          activeRoute={route.view}
+          collapsed={effectiveCollapsed}
+          onCollapsedChange={setSidebarCollapsed}
+          onNavigate={navigateTo}
+          showCollapseToggle={!compact}
+        />
+      ) : null}
       <AppHeader
         title={activeTitle}
         breadcrumbs={breadcrumbs}
         userName={user.displayName}
+        compact={compact}
+        onNavigationOpen={mobile ? () => setNavigationOpen(true) : undefined}
       />
       <main className={styles.main}>
         {messages.length ? (
@@ -372,6 +466,25 @@ export const AppShell = ({
         onConfirm={() => resolveConfirmation(true)}
         onDismiss={() => resolveConfirmation(false)}
       />
+      <Panel
+        isOpen={mobile && navigationOpen}
+        isLightDismiss
+        type={PanelType.smallFixedNear}
+        headerText="PMO navigation"
+        closeButtonAriaLabel="Close navigation"
+        styles={navigationDrawerPanelStyles}
+        onDismiss={() => setNavigationOpen(false)}
+      >
+        <Sidebar
+          drawer
+          items={navigation}
+          capabilities={user.capabilities ?? []}
+          activeRoute={route.view}
+          collapsed={false}
+          onCollapsedChange={setSidebarCollapsed}
+          onNavigate={navigateTo}
+        />
+      </Panel>
     </div>
   );
 };

@@ -32,21 +32,23 @@ export const AppButton = ({
   variant = "secondary",
   ...props
 }: IAppButtonProps): React.ReactElement => {
-  if (variant === "primary") return <PrimaryButton {...props} />;
-  if (variant === "icon") return <FluentIconButton {...props} />;
-  const variantClassName = props.disabled
-    ? ""
-    : variant === "danger"
-      ? primitiveStyles.buttonDanger
-      : variant === "subtle"
-        ? primitiveStyles.buttonSubtle
-        : "";
-  return (
-    <DefaultButton
-      {...props}
-      className={`${props.className ?? ""} ${variantClassName}`}
-    />
-  );
+  const variantClassName =
+    variant === "primary"
+      ? primitiveStyles.buttonPrimary
+      : variant === "danger"
+        ? primitiveStyles.buttonDanger
+        : variant === "subtle"
+          ? primitiveStyles.buttonSubtle
+          : variant === "icon"
+            ? primitiveStyles.buttonIcon
+            : primitiveStyles.buttonSecondary;
+  const baseClassName = variant === "icon" ? "" : primitiveStyles.buttonBase;
+  const className = `${props.className ?? ""} ${baseClassName} ${variantClassName}`;
+  if (variant === "primary")
+    return <PrimaryButton {...props} className={className} />;
+  if (variant === "icon")
+    return <FluentIconButton {...props} className={className} />;
+  return <DefaultButton {...props} className={className} />;
 };
 
 export interface IIconButtonProps
@@ -62,6 +64,7 @@ export const IconButton = ({
 }: IIconButtonProps): React.ReactElement => (
   <FluentIconButton
     {...props}
+    className={`${props.className ?? ""} ${primitiveStyles.buttonIcon}`}
     ariaLabel={ariaLabel}
     title={props.title ?? ariaLabel}
   />

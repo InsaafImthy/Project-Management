@@ -9,30 +9,44 @@ const focusRing = {
 export const layoutStyles = mergeStyleSets({
   appShell: {
     background: t.colors.neutral.background,
+    blockSize: "100dvh",
+    containerType: "inline-size",
     display: "grid",
     gridTemplateAreas: '"sidebar header" "sidebar main"',
-    gridTemplateColumns: "240px minmax(0, 1fr)",
+    gridTemplateColumns: "236px minmax(0, 1fr)",
     gridTemplateRows: "auto minmax(0, 1fr)",
-    minHeight: "70vh",
+    maxHeight: "100dvh",
+    maxWidth: "100%",
+    minHeight: 0,
+    minWidth: 0,
+    overflow: "hidden",
     transition: `grid-template-columns ${t.motion.durations.standard}ms ${t.motion.easing}`,
+    width: "100%",
     selectors: {
-      [`@media (max-width: ${t.breakpoints.tablet}px)`]: {
-        gridTemplateColumns: `${t.controlHeights.large + t.spacing.lg}px minmax(0, 1fr)`,
-      },
       [t.motion.reducedMotionMediaQuery]: { transition: "none" },
     },
   },
   appShellCollapsed: {
-    gridTemplateColumns: `${t.controlHeights.large + t.spacing.lg}px minmax(0, 1fr)`,
+    gridTemplateColumns: "64px minmax(0, 1fr)",
+  },
+  appShellMobile: {
+    gridTemplateAreas: '"header" "main"',
+    gridTemplateColumns: "minmax(0, 1fr)",
   },
   sidebar: {
-    background: t.colors.neutral.strong,
-    color: t.colors.neutral.surface,
+    background: t.colors.neutral.surface,
+    borderRight: `${t.borders.width}px solid ${t.colors.neutral.border}`,
+    color: t.colors.neutral.text,
     gridArea: "sidebar",
+    alignSelf: "stretch",
+    height: "100%",
+    minHeight: 0,
     minWidth: 0,
-    overflow: "hidden",
+    overflowX: "hidden",
+    overflowY: "auto",
     padding: `${t.spacing.md}px ${t.spacing.sm}px`,
   },
+  sidebarDrawer: { borderRight: 0, height: "100%", paddingTop: t.spacing.sm },
   sidebarBrand: {
     alignItems: "center",
     display: "flex",
@@ -43,24 +57,11 @@ export const layoutStyles = mergeStyleSets({
     marginBottom: t.spacing.lg,
     minHeight: t.controlHeights.large,
   },
-  sidebarToggle: {
-    selectors: {
-      [`@media (max-width: ${t.breakpoints.tablet}px)`]: { display: "none" },
-    },
-  },
+  sidebarToggle: { flex: "0 0 auto" },
   sidebarLabel: {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
-    selectors: {
-      [`@media (max-width: ${t.breakpoints.tablet}px)`]: {
-        clip: "rect(0 0 0 0)",
-        clipPath: "inset(50%)",
-        height: 1,
-        position: "absolute",
-        width: 1,
-      },
-    },
   },
   sidebarLabelCollapsed: {
     clip: "rect(0 0 0 0)",
@@ -71,7 +72,7 @@ export const layoutStyles = mergeStyleSets({
   },
   sidebarGroup: { marginBottom: t.spacing.lg },
   sidebarGroupTitle: {
-    color: t.colors.neutral.border,
+    color: t.colors.neutral.muted,
     fontSize: t.typography.sizes.caption,
     fontWeight: t.typography.weights.semibold,
     margin: `${t.spacing.sm}px ${t.spacing.sm}px`,
@@ -83,7 +84,7 @@ export const layoutStyles = mergeStyleSets({
     background: "transparent",
     border: 0,
     borderRadius: t.radii.medium,
-    color: t.colors.neutral.surface,
+    color: t.colors.neutral.text,
     cursor: "pointer",
     display: "flex",
     font: "inherit",
@@ -93,18 +94,23 @@ export const layoutStyles = mergeStyleSets({
     textAlign: "left",
     width: "100%",
     selectors: {
-      ":hover": { background: t.colors.neutral.text },
+      ":hover": { background: t.colors.neutral.subtle },
       ":focus-visible": focusRing,
     },
   },
   sidebarLinkActive: {
     background: t.colors.brand.primary,
+    color: t.colors.neutral.surface,
     fontWeight: t.typography.weights.semibold,
+    selectors: {
+      ":hover": { background: t.colors.brand.hover },
+    },
   },
   sidebarIcon: {
     flex: "0 0 auto",
     fontSize: t.typography.sizes.bodyLarge,
-    width: t.spacing.xl,
+    textAlign: "center",
+    width: t.spacing.lg,
   },
   header: {
     alignItems: "center",
@@ -114,14 +120,33 @@ export const layoutStyles = mergeStyleSets({
     gap: t.spacing.lg,
     gridArea: "header",
     justifyContent: "space-between",
-    minHeight: 64,
+    minHeight: 68,
     padding: `${t.spacing.sm}px ${t.spacing.xl}px`,
   },
+  headerCompact: {
+    gap: t.spacing.sm,
+    padding: `${t.spacing.sm}px ${t.spacing.md}px`,
+  },
+  headerMenuButton: { flex: "0 0 auto" },
+  headerContext: { flex: "1 1 auto", minWidth: 0, overflow: "hidden" },
   headerTitle: {
     fontSize: t.typography.sizes.subtitle,
     fontWeight: t.typography.weights.semibold,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
-  headerUser: { alignItems: "center", display: "flex", gap: t.spacing.sm },
+  headerUser: {
+    alignItems: "center",
+    display: "flex",
+    flex: "0 0 auto",
+    gap: t.spacing.sm,
+  },
+  headerIdentityCompact: {
+    selectors: {
+      ":global(.ms-Persona-details)": { display: "none" },
+    },
+  },
   headerVersion: {
     color: t.colors.neutral.muted,
     fontSize: t.typography.sizes.caption,
@@ -148,8 +173,23 @@ export const layoutStyles = mergeStyleSets({
     padding: 0,
     selectors: { ":focus-visible": focusRing },
   },
-  main: { gridArea: "main", minWidth: 0 },
-  messages: { padding: `${t.spacing.md}px ${t.spacing.xl}px 0` },
+  main: {
+    gridArea: "main",
+    minHeight: 0,
+    minWidth: 0,
+    overflowX: "hidden",
+    overflowY: "auto",
+    overscrollBehavior: "contain",
+    paddingBottom: t.spacing.xl,
+  },
+  messages: {
+    padding: `${t.spacing.md}px ${t.spacing.xl}px 0`,
+    selectors: {
+      "@container (max-width: 520px)": {
+        padding: `${t.spacing.md}px ${t.spacing.md}px 0`,
+      },
+    },
+  },
   contentContainer: {
     margin: "0 auto",
     maxWidth: t.contentWidths.wide,
@@ -157,9 +197,7 @@ export const layoutStyles = mergeStyleSets({
     width: "100%",
     boxSizing: "border-box",
     selectors: {
-      [`@media (max-width: ${t.breakpoints.tablet}px)`]: {
-        padding: t.spacing.md,
-      },
+      "@container (max-width: 520px)": { padding: t.spacing.md },
     },
   },
   pageHeader: {
@@ -174,6 +212,7 @@ export const layoutStyles = mergeStyleSets({
     fontSize: t.typography.sizes.title,
     lineHeight: t.typography.lineHeights.heading,
     margin: 0,
+    overflowWrap: "anywhere",
   },
   pageSubtitle: {
     color: t.colors.neutral.muted,
@@ -186,3 +225,18 @@ export const layoutStyles = mergeStyleSets({
     textAlign: "center",
   },
 });
+
+/** Fluent Panel overrides that make the mobile drawer match the application shell. */
+export const navigationDrawerPanelStyles = {
+  main: {
+    background: t.colors.neutral.surface,
+    boxShadow: t.shadows.high,
+  },
+  header: {
+    borderBottom: `${t.borders.dividerWidth}px solid ${t.colors.neutral.border}`,
+    color: t.colors.neutral.strong,
+    fontSize: t.typography.sizes.subtitle,
+    fontWeight: "600",
+  },
+  content: { padding: 0 },
+};

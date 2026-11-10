@@ -9,7 +9,14 @@ import {
   type IPersonaProps,
 } from "@fluentui/react";
 import { FieldError, FieldHint, FieldLabel } from "./Fields";
-import { primitiveStyles } from "./primitiveStyles";
+import {
+  pmoCheckboxStyles,
+  pmoDropdownStyles,
+  pmoPeoplePickerStyles,
+  pmoSearchBoxStyles,
+  pmoTextFieldStyles,
+  primitiveStyles,
+} from "./primitiveStyles";
 
 interface IFieldPresentationProps {
   /** Visible label and accessible name for the control. */
@@ -86,6 +93,7 @@ export const TextInput = ({
         required={required}
         value={value}
         placeholder={placeholder}
+        styles={pmoTextFieldStyles}
         onChange={(_event, next) => onChange?.(next ?? "")}
       />
       <FieldSupport
@@ -133,6 +141,7 @@ export const TextArea = ({
         required={props.required}
         value={props.value}
         placeholder={props.placeholder}
+        styles={pmoTextFieldStyles}
         onChange={(_event, next) => props.onChange?.(next ?? "")}
       />
       <FieldSupport
@@ -209,6 +218,7 @@ export const NumberInput = ({
         invalid={Boolean(errorMessage)}
         disabled={disabled}
         required={required}
+        styles={pmoTextFieldStyles}
         onChange={(_event, next) => commit(next ?? "")}
       />
       <FieldSupport
@@ -263,6 +273,7 @@ const TemporalInput = ({
         invalid={Boolean(errorMessage)}
         disabled={disabled}
         required={required}
+        styles={pmoTextFieldStyles}
         onChange={(_event, next) => onChange?.(next ?? "")}
       />
       <FieldSupport
@@ -321,6 +332,7 @@ export const SelectInput = ({
         placeholder={placeholder}
         aria-describedby={describedBy(hintId, errorId, hint, errorMessage)}
         errorMessage={errorMessage}
+        styles={pmoDropdownStyles}
         onChange={(_event, option) => onChange?.(option?.key)}
       />
       {hint ? <FieldHint id={hintId}>{hint}</FieldHint> : null}
@@ -362,6 +374,7 @@ export const CheckboxInput = ({
         disabled={disabled}
         ariaDescribedBy={describedBy(hintId, errorId, hint, errorMessage)}
         inputProps={{ "aria-invalid": Boolean(errorMessage) }}
+        styles={pmoCheckboxStyles}
         onChange={(_event, next) => onChange?.(Boolean(next))}
       />
       <FieldSupport
@@ -419,6 +432,7 @@ export const PersonInput = ({
         onChange={(people) => onChange?.((people ?? []) as IPmoPerson[])}
         getTextFromItem={(person) => person.text ?? ""}
         removeButtonAriaLabel="Remove person"
+        styles={pmoPeoplePickerStyles}
         pickerSuggestionsProps={{
           suggestionsHeaderText: "Suggested people",
           noResultsFoundText: "No people found",
@@ -478,6 +492,7 @@ export const SearchInput = ({
       value={value}
       placeholder={placeholder}
       disabled={disabled}
+      styles={pmoSearchBoxStyles}
       onChange={(_event, next) => queueSearch(next ?? "")}
       onSearch={queueSearch}
       onClear={() => queueSearch("")}

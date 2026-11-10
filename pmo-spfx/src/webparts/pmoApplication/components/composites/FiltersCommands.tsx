@@ -37,11 +37,13 @@ export const FilterBar = ({
     </div>
     {controls ? <div className={styles.filterControls}>{controls}</div> : null}
     {activeFilterCount > 0 && onClearAll ? (
-      <AppButton
-        variant="subtle"
-        text={`Clear all (${activeFilterCount})`}
-        onClick={onClearAll}
-      />
+      <div className={styles.filterActions}>
+        <AppButton
+          variant="subtle"
+          text={`Clear all (${activeFilterCount})`}
+          onClick={onClearAll}
+        />
+      </div>
     ) : null}
   </div>
 );

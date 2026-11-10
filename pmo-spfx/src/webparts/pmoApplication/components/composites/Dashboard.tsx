@@ -7,7 +7,10 @@ import {
 } from "../primitives";
 import { AppButton } from "../primitives/Buttons";
 import { compositeStyles as styles } from "./compositeStyles";
-import { pmoDesignTokens } from "../../theme/pmoDesignTokens";
+import {
+  pmoDesignTokens,
+  type PmoSemanticTone,
+} from "../../theme/pmoDesignTokens";
 
 /** Vertical dashboard composition shared by every module. */
 export const DashboardLayout = ({
@@ -23,11 +26,27 @@ export const KpiGrid = ({
   readonly children: React.ReactNode;
 }): React.ReactElement => <div className={styles.kpiGrid}>{children}</div>;
 
+/** Responsive card grid for dashboard charts, summaries, and queues. */
+export const DashboardCardGrid = ({
+  children,
+}: {
+  readonly children: React.ReactNode;
+}): React.ReactElement => (
+  <div className={styles.dashboardCardGrid}>{children}</div>
+);
+
+export interface IKpiStatus {
+  /** Visible text keeps the indicator meaningful without relying on color. */
+  readonly label: string;
+  readonly tone?: PmoSemanticTone;
+}
+
 export interface IKpiCardProps {
   readonly title: string;
   readonly value: React.ReactNode;
   readonly helpText?: string;
   readonly trend?: React.ReactNode;
+  readonly status?: IKpiStatus;
   readonly onDrillDown?: () => void;
 }
 
@@ -37,19 +56,37 @@ export const KpiCard = ({
   value,
   helpText,
   trend,
+  status,
   onDrillDown,
 }: IKpiCardProps): React.ReactElement => {
   const content = (
     <>
-      <h3 className={styles.cardTitle}>{title}</h3>
+      <div className={styles.kpiCardHeader}>
+        <h3 className={styles.cardTitle}>{title}</h3>
+        {status ? (
+          <span
+            className={`${styles.kpiStatus} ${
+              styles[`kpiStatus${status.tone ?? "neutral"}`]
+            }`}
+          >
+            <span aria-hidden="true" className={styles.kpiStatusDot} />
+            {status.label}
+          </span>
+        ) : null}
+      </div>
       <div className={styles.cardValue}>{value}</div>
-      {trend}
+      {trend ? <div className={styles.kpiTrend}>{trend}</div> : null}
       {helpText ? <p className={styles.cardHelp}>{helpText}</p> : null}
+      {onDrillDown ? (
+        <span aria-hidden="true" className={styles.cardAction}>
+          View details <span className={styles.cardActionArrow}>→</span>
+        </span>
+      ) : null}
     </>
   );
   return onDrillDown ? (
     <button
-      className={`${styles.card} ${styles.cardButton}`}
+      className={`${styles.card} ${styles.kpiCard} ${styles.cardButton}`}
       type="button"
       onClick={onDrillDown}
       aria-label={`${title}: open details`}
@@ -57,7 +94,7 @@ export const KpiCard = ({
       {content}
     </button>
   ) : (
-    <section className={styles.card}>{content}</section>
+    <section className={`${styles.card} ${styles.kpiCard}`}>{content}</section>
   );
 };
 
@@ -84,23 +121,30 @@ export const ChartCard = ({
   emptyDescription = "There is no data available for this chart.",
 }: IChartCardProps): React.ReactElement => (
   <section
-    className={styles.card}
+    className={`${styles.card} ${styles.chartCard}`}
     aria-labelledby={`chart-${title.replace(/\s+/g, "-")}`}
   >
-    <h3 className={styles.cardTitle} id={`chart-${title.replace(/\s+/g, "-")}`}>
-      {title}
-    </h3>
-    {helpText ? <p className={styles.cardHelp}>{helpText}</p> : null}
-    {loading ? (
-      <LoadingSkeleton label={`Loading ${title}`} />
-    ) : empty ? (
-      <EmptyState title={emptyTitle} description={emptyDescription} />
-    ) : (
-      <>
-        <div aria-hidden="true">{children}</div>
-        <div>{dataTableFallback}</div>
-      </>
-    )}
+    <header className={styles.chartCardHeader}>
+      <h3
+        className={styles.cardTitle}
+        id={`chart-${title.replace(/\s+/g, "-")}`}
+      >
+        {title}
+      </h3>
+      {helpText ? <p className={styles.cardHelp}>{helpText}</p> : null}
+    </header>
+    <div className={styles.chartCardContent}>
+      {loading ? (
+        <LoadingSkeleton label={`Loading ${title}`} />
+      ) : empty ? (
+        <EmptyState title={emptyTitle} description={emptyDescription} />
+      ) : (
+        <>
+          <div aria-hidden="true">{children}</div>
+          <div className={styles.chartFallback}>{dataTableFallback}</div>
+        </>
+      )}
+    </div>
   </section>
 );
 
@@ -122,7 +166,7 @@ export const SimpleBarChart = ({
     <div className={styles.chartBars}>
       {visible.map((item, index) => (
         <div className={styles.chartBarRow} key={item.label}>
-          <span>{item.label}</span>
+          <span className={styles.chartBarLabel}>{item.label}</span>
           <span className={styles.chartBarTrack}>
             <span
               className={styles.chartBarFill}
@@ -137,7 +181,7 @@ export const SimpleBarChart = ({
               }}
             />
           </span>
-          <strong>{item.value}</strong>
+          <strong className={styles.chartBarValue}>{item.value}</strong>
         </div>
       ))}
     </div>
@@ -156,16 +200,19 @@ export interface IActionQueueItem {
 export const ActionQueue = ({
   items,
   emptyMessage = "No actions require attention.",
+  contained = false,
 }: {
   readonly items: readonly IActionQueueItem[];
   readonly emptyMessage?: string;
-}): React.ReactElement =>
-  items.length ? (
+  /** Use inside a SummaryCard to avoid nesting visual card surfaces. */
+  readonly contained?: boolean;
+}): React.ReactElement => {
+  const content = items.length ? (
     <ul className={styles.queue} aria-label="Action queue">
       {items.map((item) => (
         <li className={styles.queueItem} key={item.key}>
-          <div>
-            <strong>{item.title}</strong>
+          <div className={styles.queueContent}>
+            <strong className={styles.queueTitle}>{item.title}</strong>
             {item.detail ? (
               <div className={styles.mutedText}>{item.detail}</div>
             ) : null}
@@ -177,6 +224,12 @@ export const ActionQueue = ({
   ) : (
     <p className={styles.mutedText}>{emptyMessage}</p>
   );
+  return contained ? (
+    content
+  ) : (
+    <div className={styles.actionQueue}>{content}</div>
+  );
+};
 
 /** Generic summary content card. */
 export const SummaryCard = ({
@@ -188,10 +241,14 @@ export const SummaryCard = ({
   readonly children: React.ReactNode;
   readonly footer?: React.ReactNode;
 }): React.ReactElement => (
-  <section className={styles.card}>
-    <h3 className={styles.cardTitle}>{title}</h3>
-    <div>{children}</div>
-    {footer}
+  <section className={`${styles.card} ${styles.summaryCard}`}>
+    <header className={styles.summaryCardHeader}>
+      <h3 className={styles.cardTitle}>{title}</h3>
+    </header>
+    <div className={styles.summaryCardContent}>{children}</div>
+    {footer ? (
+      <footer className={styles.summaryCardFooter}>{footer}</footer>
+    ) : null}
   </section>
 );
 
@@ -268,7 +325,7 @@ export const DashboardSection = ({
     className={styles.dashboardSection}
     aria-labelledby={`dashboard-${title.replace(/\s+/g, "-")}`}
   >
-    <Stack direction="horizontal" gap="md" wrap>
+    <div className={styles.dashboardSectionHeader}>
       <div>
         <h2
           className={styles.sectionHeading}
@@ -281,7 +338,7 @@ export const DashboardSection = ({
         ) : null}
       </div>
       {commands}
-    </Stack>
+    </div>
     {children}
   </section>
 );

@@ -135,6 +135,10 @@ export const QualityDashboardPage = (): React.ReactElement => {
             <KpiCard
               title="Release blocking"
               value={summary.releaseBlocking}
+              status={{
+                label: summary.releaseBlocking ? "Blocked" : "Clear",
+                tone: summary.releaseBlocking ? "danger" : "success",
+              }}
               onDrillDown={() =>
                 drill({ releaseBlocking: "true", open: "true" })
               }
@@ -161,6 +165,10 @@ export const QualityDashboardPage = (): React.ReactElement => {
             <KpiCard
               title="Critical open"
               value={summary.critical}
+              status={{
+                label: summary.critical ? "Critical" : "Clear",
+                tone: summary.critical ? "danger" : "success",
+              }}
               onDrillDown={() => drill({ severity: "Critical", open: "true" })}
             />
             <KpiCard

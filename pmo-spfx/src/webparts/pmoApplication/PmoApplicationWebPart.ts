@@ -7,6 +7,8 @@ import {
 } from "@microsoft/sp-property-pane";
 import { BaseClientSideWebPart } from "@microsoft/sp-webpart-base";
 import { IReadonlyTheme } from "@microsoft/sp-component-base";
+import { SPComponentLoader } from "@microsoft/sp-loader";
+import "./shared/styles/sharepointAppShell.css";
 
 import * as strings from "PmoApplicationWebPartStrings";
 import PmoApplication from "./components/PmoApplication";
@@ -20,11 +22,35 @@ export interface IPmoApplicationWebPartProps {
 
 /** SharePoint-hosted entry point. Teams host support is intentionally deferred. */
 export default class PmoApplicationWebPart extends BaseClientSideWebPart<IPmoApplicationWebPartProps> {
+  /**
+   * Stable hook for the scoped SharePoint canvas overrides in the application
+   * stylesheet. Applying it to the framework-owned host keeps the React tree
+   * independent of SharePoint's page markup.
+   */
+  private static readonly hostClassName = "pmo-application-host";
   private _isDarkTheme: boolean = false;
   private _root: Root | undefined;
   private _sharePointClient: SharePointClient | undefined;
 
+  /**
+   * Loads a site-owned escape hatch after the bundled application shell CSS.
+   * The PMO shell never depends on this file: a missing SiteAssets override
+   * must not prevent the page from rendering full-screen.
+   */
+  protected onInit(): Promise<void> {
+    SPComponentLoader.loadCss(
+      `${this.context.pageContext.web.absoluteUrl}/SiteAssets/css/developer.css`,
+    );
+    return super.onInit();
+  }
+
   public render(): void {
+    this.domElement.classList.add(PmoApplicationWebPart.hostClassName);
+    this.domElement.style.inlineSize = "100%";
+    this.domElement.style.blockSize = "100dvh";
+    this.domElement.style.maxInlineSize = "100%";
+    this.domElement.style.minInlineSize = "0";
+
     this._sharePointClient ??= new SharePointClient(
       this.context.spHttpClient,
       pmoEnvironment,
@@ -59,6 +85,11 @@ export default class PmoApplicationWebPart extends BaseClientSideWebPart<IPmoApp
   protected onDispose(): void {
     this._root?.unmount();
     this._root = undefined;
+    this.domElement.classList.remove(PmoApplicationWebPart.hostClassName);
+    this.domElement.style.removeProperty("inline-size");
+    this.domElement.style.removeProperty("block-size");
+    this.domElement.style.removeProperty("max-inline-size");
+    this.domElement.style.removeProperty("min-inline-size");
   }
 
   protected get dataVersion(): Version {

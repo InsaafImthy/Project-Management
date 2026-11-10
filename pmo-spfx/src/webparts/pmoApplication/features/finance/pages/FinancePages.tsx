@@ -12,6 +12,7 @@ import {
   ReasonDialog,
   SummaryCard,
   type IDataTableColumn,
+  type IKpiStatus,
 } from "../../../components/composites";
 import { ContentContainer, PageHeader } from "../../../components/layout";
 import {
@@ -96,6 +97,10 @@ export const FinanceDashboardPage = (): React.ReactElement => {
   const money = (value: number): React.ReactElement => (
     <MoneyDisplay value={value} currency={data.currencyCode} />
   );
+  const exceptionStatus = (count: number): IKpiStatus => ({
+    label: count ? "Review" : "Clear",
+    tone: count ? ("warning" as const) : ("success" as const),
+  });
   return (
     <ContentContainer>
       <PageHeader
@@ -147,6 +152,7 @@ export const FinanceDashboardPage = (): React.ReactElement => {
           <KpiCard
             title="Below margin threshold"
             value={data.belowMarginThreshold}
+            status={exceptionStatus(data.belowMarginThreshold)}
             onDrillDown={() =>
               navigateTo(navigate, FINANCE_ROUTES.projectFinancials, {
                 exception: "low-margin",
@@ -156,6 +162,7 @@ export const FinanceDashboardPage = (): React.ReactElement => {
           <KpiCard
             title="Missing rate"
             value={data.missingRate}
+            status={exceptionStatus(data.missingRate)}
             onDrillDown={() =>
               navigateTo(navigate, FINANCE_ROUTES.costs, {
                 queue: "missing-rate",
@@ -165,6 +172,7 @@ export const FinanceDashboardPage = (): React.ReactElement => {
           <KpiCard
             title="Missing value"
             value={data.missingValue}
+            status={exceptionStatus(data.missingValue)}
             onDrillDown={() =>
               navigateTo(navigate, FINANCE_ROUTES.projectFinancials, {
                 status: "Missing Value",
@@ -174,6 +182,7 @@ export const FinanceDashboardPage = (): React.ReactElement => {
           <KpiCard
             title="Unapproved costs"
             value={data.unapprovedCosts}
+            status={exceptionStatus(data.unapprovedCosts)}
             onDrillDown={() =>
               navigateTo(navigate, FINANCE_ROUTES.costs, { status: "Draft" })
             }
@@ -181,6 +190,7 @@ export const FinanceDashboardPage = (): React.ReactElement => {
           <KpiCard
             title="Awaiting cost synchronization"
             value={data.awaitingCostSynchronization}
+            status={exceptionStatus(data.awaitingCostSynchronization)}
             onDrillDown={() =>
               navigateTo(navigate, FINANCE_ROUTES.costs, { queue: "sync" })
             }

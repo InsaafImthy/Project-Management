@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
   ChartCard,
+  DashboardCardGrid,
   DashboardLayout,
   DashboardSection,
   DataTable,
@@ -623,28 +624,30 @@ export const RoleHomePage = (): React.ReactElement => {
             />
           </KpiGrid>
           <DashboardSection title="Delivery outlook">
-            <HomeChart
-              title="Managed projects by health"
-              items={charts.health}
-            />
-            <HomeChart
-              title="Tasks by status"
-              items={[
-                {
-                  label: "Awaiting acceptance",
-                  value: actions.counts.awaitingAcceptance,
-                },
-                { label: "Due this week", value: actions.counts.dueSoon },
-                { label: "Overdue", value: actions.counts.overdue },
-                { label: "Blocked", value: actions.counts.blocked },
-                { label: "Review", value: actions.reviews.length },
-              ]}
-            />
-            <HomeChart
-              title="Effort baseline, approved, actual and forecast"
-              items={charts.effort}
-              helpText="Hours across the currently managed project set."
-            />
+            <DashboardCardGrid>
+              <HomeChart
+                title="Managed projects by health"
+                items={charts.health}
+              />
+              <HomeChart
+                title="Tasks by status"
+                items={[
+                  {
+                    label: "Awaiting acceptance",
+                    value: actions.counts.awaitingAcceptance,
+                  },
+                  { label: "Due this week", value: actions.counts.dueSoon },
+                  { label: "Overdue", value: actions.counts.overdue },
+                  { label: "Blocked", value: actions.counts.blocked },
+                  { label: "Review", value: actions.reviews.length },
+                ]}
+              />
+              <HomeChart
+                title="Effort baseline, approved, actual and forecast"
+                items={charts.effort}
+                helpText="Hours across the currently managed project set."
+              />
+            </DashboardCardGrid>
           </DashboardSection>
         </DashboardLayout>
       </ContentContainer>
@@ -739,25 +742,29 @@ export const RoleHomePage = (): React.ReactElement => {
           />
         </KpiGrid>
         <DashboardSection title="Portfolio decisions">
-          <HomeChart title="Projects by health" items={charts.health} />
-          <HomeChart title="Projects by status" items={charts.status} />
-          <HomeChart
-            title="Effort baseline, approved, actual and forecast"
-            items={charts.effort}
-          />
-          <PortfolioDateTable projects={projects} />
-          <HomeChart
-            title="Resource allocation categories"
-            items={allocation}
-          />
-          <HomeChart title="Quality items by severity" items={severity} />
-          {finance ? (
+          <DashboardCardGrid>
+            <HomeChart title="Projects by health" items={charts.health} />
+            <HomeChart title="Projects by status" items={charts.status} />
             <HomeChart
-              title="Cost and margin comparison"
-              items={financeItems}
-              helpText={`Authorized financial summary in ${finance.currencyCode}.`}
+              title="Effort baseline, approved, actual and forecast"
+              items={charts.effort}
             />
-          ) : null}
+          </DashboardCardGrid>
+          <PortfolioDateTable projects={projects} />
+          <DashboardCardGrid>
+            <HomeChart
+              title="Resource allocation categories"
+              items={allocation}
+            />
+            <HomeChart title="Quality items by severity" items={severity} />
+            {finance ? (
+              <HomeChart
+                title="Cost and margin comparison"
+                items={financeItems}
+                helpText={`Authorized financial summary in ${finance.currencyCode}.`}
+              />
+            ) : null}
+          </DashboardCardGrid>
         </DashboardSection>
         <SummaryCard title="Metrics freshness">
           <p>

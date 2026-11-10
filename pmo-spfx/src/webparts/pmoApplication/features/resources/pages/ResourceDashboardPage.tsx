@@ -89,7 +89,14 @@ export const ResourceDashboardPage = (): React.ReactElement => {
             value={data.partiallyAllocated}
           />
           <KpiCard title="Available" value={data.available} />
-          <KpiCard title="Over-allocated" value={data.overAllocated} />
+          <KpiCard
+            title="Over-allocated"
+            value={data.overAllocated}
+            status={{
+              label: data.overAllocated ? "Review" : "Clear",
+              tone: data.overAllocated ? "warning" : "success",
+            }}
+          />
         </KpiGrid>
         <SummaryCard title="Selected date range">
           <p>

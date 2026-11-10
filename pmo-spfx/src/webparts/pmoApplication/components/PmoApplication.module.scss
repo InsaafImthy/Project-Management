@@ -3,6 +3,31 @@
   color: "[theme:bodyText, default: #323130]";
   color: var(--bodyText, #323130);
   font-family: "Segoe UI", "Segoe UI Web (West European)", Arial, sans-serif;
+  block-size: 100vh;
+  block-size: 100dvh;
+  min-block-size: 100vh;
+  min-block-size: 100dvh;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+/* The global app-shell stylesheet owns the surrounding SharePoint canvas. */
+:global(.pmo-application-host) {
+  block-size: 100vh;
+  block-size: 100dvh;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.pmoApplication *,
+.pmoApplication *::before,
+.pmoApplication *::after {
+  box-sizing: border-box;
 }
 
 @media (prefers-reduced-motion: reduce) {
