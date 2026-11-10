@@ -7,7 +7,7 @@ import type {
 import type { ISharePointClient } from "../sharepoint/SharePointClient";
 
 export const PMO_GROUPS = {
-  owner: "PMO Owners",
+  owner: "Project Management Tool Owners",
   projectManager: "PMO Project Managers",
   employee: "PMO Employees",
   qa: "PMO QA",

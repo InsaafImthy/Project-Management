@@ -155,12 +155,13 @@ export class SharePointClient implements ISharePointClient {
   ) {}
 
   public async getJson<T>(url: string): Promise<T> {
+    const requestUrl = this.toAbsoluteUrl(url);
     const response = await this.httpClient.get(
-      this.toAbsoluteUrl(url),
+      requestUrl,
       SPHttpClient.configurations.v1,
       { headers: { Accept: "application/json;odata=nometadata" } },
     );
-    await this.ensureSuccess(response);
+    await this.ensureSuccess(response, "GET", requestUrl);
     return (await response.json()) as T;
   }
 
@@ -174,12 +175,13 @@ export class SharePointClient implements ISharePointClient {
     const parameters = new URLSearchParams();
     parameters.set("$select", select.join(","));
     if (expand.length > 0) parameters.set("$expand", expand.join(","));
+    const requestUrl = `${this.itemsEndpoint(listName)}(${id})?${parameters.toString()}`;
     const response = await this.httpClient.get(
-      `${this.itemsEndpoint(listName)}(${id})?${parameters.toString()}`,
+      requestUrl,
       SPHttpClient.configurations.v1,
       { headers: { Accept: "application/json;odata=nometadata" } },
     );
-    await this.ensureSuccess(response);
+    await this.ensureSuccess(response, "GET", requestUrl);
     const payload = normalizeItem<T>((await response.json()) as T | { d: T });
     const etag = readHeader(response, "ETag");
     return (etag ? { ...payload, "@odata.etag": etag } : payload) as T;
@@ -197,7 +199,7 @@ export class SharePointClient implements ISharePointClient {
       SPHttpClient.configurations.v1,
       { headers: { Accept: "application/json;odata=nometadata" } },
     );
-    await this.ensureSuccess(response);
+    await this.ensureSuccess(response, "GET", url);
     return normalizeCollection(
       (await response.json()) as ISharePointCollectionWire<T>,
     );
@@ -207,12 +209,13 @@ export class SharePointClient implements ISharePointClient {
     listName: PmoContainerName,
     values: Readonly<Record<string, unknown>>,
   ): Promise<ISharePointCreateResult> {
+    const requestUrl = this.itemsEndpoint(listName);
     const response = await this.httpClient.post(
-      this.itemsEndpoint(listName),
+      requestUrl,
       SPHttpClient.configurations.v1,
       this.jsonOptions(values),
     );
-    await this.ensureSuccess(response);
+    await this.ensureSuccess(response, "POST", requestUrl);
     const payload = normalizeItem<ISharePointItemWire>(
       (await response.json()) as
         | ISharePointItemWire
@@ -235,12 +238,13 @@ export class SharePointClient implements ISharePointClient {
     etag: string,
   ): Promise<void> {
     this.assertGovernedEtag(etag);
+    const requestUrl = `${this.itemsEndpoint(listName)}(${id})`;
     const response = await this.httpClient.post(
-      `${this.itemsEndpoint(listName)}(${id})`,
+      requestUrl,
       SPHttpClient.configurations.v1,
       this.jsonOptions(values, { "IF-MATCH": etag, "X-HTTP-Method": "MERGE" }),
     );
-    await this.ensureSuccess(response);
+    await this.ensureSuccess(response, "POST", requestUrl);
   }
 
   /**
@@ -297,7 +301,7 @@ export class SharePointClient implements ISharePointClient {
         headers: { Accept: "application/json;odata=nometadata" },
       },
     );
-    await this.ensureSuccess(response);
+    await this.ensureSuccess(response, "POST", uploadUrl);
     const payload = normalizeItem<{
       readonly ServerRelativeUrl: string;
       readonly ListItemAllFields: ISharePointItemWire;
@@ -328,15 +332,16 @@ export class SharePointClient implements ISharePointClient {
     return {
       delete: async (listName, id, etag) => {
         this.assertGovernedEtag(etag);
+        const requestUrl = `${this.itemsEndpoint(listName)}(${id})`;
         const response = await this.httpClient.post(
-          `${this.itemsEndpoint(listName)}(${id})`,
+          requestUrl,
           SPHttpClient.configurations.v1,
           this.jsonOptions(
             {},
             { "IF-MATCH": etag, "X-HTTP-Method": "DELETE" },
           ),
         );
-        await this.ensureSuccess(response);
+        await this.ensureSuccess(response, "POST", requestUrl);
       },
     };
   }
@@ -399,7 +404,11 @@ export class SharePointClient implements ISharePointClient {
     }
   }
 
-  private async ensureSuccess(response: SPHttpClientResponse): Promise<void> {
+  private async ensureSuccess(
+    response: SPHttpClientResponse,
+    requestMethod: "GET" | "POST",
+    requestUrl: string,
+  ): Promise<void> {
     if (response.ok) return;
     let parsed: { readonly message?: string; readonly code?: string } = {};
     try {
@@ -423,6 +432,8 @@ export class SharePointClient implements ISharePointClient {
       ),
       classifyStatus(response.status),
       parsed.code,
+      requestMethod,
+      requestUrl,
     );
   }
 }

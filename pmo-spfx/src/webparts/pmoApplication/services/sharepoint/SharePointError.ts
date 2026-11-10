@@ -15,6 +15,8 @@ export class SharePointError extends Error {
     public readonly correlationId: string | undefined,
     public readonly classification: SharePointRetryClassification,
     public readonly serverCode?: string,
+    public readonly requestMethod?: "GET" | "POST",
+    public readonly requestUrl?: string,
   ) {
     super(message);
     this.name = "SharePointError";

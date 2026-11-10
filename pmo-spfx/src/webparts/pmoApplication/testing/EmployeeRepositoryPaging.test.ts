@@ -56,7 +56,20 @@ describe("Employee list filters and paging integration", () => {
         filter: expect.stringMatching(
           /EmploymentStatus eq 'Active'.*Department eq 'Delivery'.*IsQA eq 1/,
         ),
+        expand: ["Author", "Editor", "EmployeeUser", "Manager"],
+        select: expect.arrayContaining([
+          "Author/Id",
+          "Editor/Id",
+          "EmployeeUser/Id",
+          "Manager/Id",
+        ]),
       }),
+    );
+    const sentQuery = query.mock.calls[0]?.[1] as {
+      readonly select: readonly string[];
+    };
+    expect(sentQuery.select).not.toEqual(
+      expect.arrayContaining(["Author", "Editor", "EmployeeUser", "Manager"]),
     );
   });
 });

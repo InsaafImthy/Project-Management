@@ -68,9 +68,11 @@ import {
   AccessDeniedPage,
   AppShell,
   ContentContainer,
+  FatalErrorPage,
   NotFoundPage,
   PageHeader,
 } from "./layout";
+import { toUserSafeErrorMessage } from "../utils/toUserSafeErrorMessage";
 import { SummaryCard } from "./composites";
 import {
   EmployeeDashboardPage,
@@ -177,9 +179,11 @@ const PmoFoundationMessage = (): React.ReactElement => (
 const PmoApplicationContent = ({
   status,
   showComponentGallery,
+  errorMessage,
 }: {
   readonly status: PmoApplicationStatus;
   readonly showComponentGallery: boolean;
+  readonly errorMessage?: string;
 }): React.ReactElement => {
   switch (status) {
     case "loading":
@@ -193,7 +197,12 @@ const PmoApplicationContent = ({
         </AppShell>
       );
     case "error":
-      throw new Error("An application rendering error was requested.");
+      return (
+        <FatalErrorPage
+          message={errorMessage}
+          onRetry={() => window.location.reload()}
+        />
+      );
   }
 };
 
@@ -778,6 +787,9 @@ export const PmoApplicationRoot = ({
   });
   const [resolvedStatus, setResolvedStatus] =
     React.useState<PmoApplicationStatus>(featureHost ? "loading" : status);
+  const [bootstrapErrorMessage, setBootstrapErrorMessage] = React.useState<
+    string | undefined
+  >();
   React.useEffect(() => {
     if (!featureHost) {
       setResolvedStatus(status);
@@ -785,6 +797,7 @@ export const PmoApplicationRoot = ({
     }
     let active = true;
     setResolvedStatus("loading");
+    setBootstrapErrorMessage(undefined);
     featureHost.capabilities
       .resolveCurrent()
       .then((user) => {
@@ -798,7 +811,11 @@ export const PmoApplicationRoot = ({
         });
         setResolvedStatus(status);
       })
-      .catch(() => active && setResolvedStatus("error"));
+      .catch((error: unknown) => {
+        if (!active) return;
+        setBootstrapErrorMessage(toUserSafeErrorMessage(error));
+        setResolvedStatus("error");
+      });
     return () => {
       active = false;
     };
@@ -810,6 +827,7 @@ export const PmoApplicationRoot = ({
           <PmoApplicationContent
             status={resolvedStatus}
             showComponentGallery={showComponentGallery}
+            errorMessage={bootstrapErrorMessage}
           />
         </PmoErrorBoundary>
       </PmoApplicationProvider>

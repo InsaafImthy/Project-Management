@@ -2,10 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Hosted workbench",
+      "name": "Modern PMO site page",
       "type": "msedge",
       "request": "launch",
-      "url": "https://{tenantDomain}/_layouts/workbench.aspx",
+      "url": "https://aufaitcloud.sharepoint.com/sites/ProjectManagementTool/SitePages/Home.aspx?loadSPFX=true&debugManifestsFile=https://localhost:4321/temp/manifests.js",
       "webRoot": "${workspaceRoot}",
       "sourceMaps": true,
       "sourceMapPathOverrides": {

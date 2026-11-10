@@ -83,11 +83,16 @@ export abstract class SharePointRepository<T extends IPmoEntity>
     private readonly mapper: SharePointMapper<T>,
     expand: readonly string[] = [],
   ) {
-    this.expand = expand;
+    // Author and Editor are SharePoint Person fields just like the domain
+    // person fields supplied by each repository. Selecting them as scalars
+    // produces a 400 response; every selected Person field must be expanded.
+    this.expand = Array.from(
+      new Set([F.config.Author, F.config.Editor, ...expand]),
+    );
     this.select = select
-      .filter((field) => expand.indexOf(field) < 0)
+      .filter((field) => this.expand.indexOf(field) < 0)
       .concat(
-        ...expand.map((field) => [
+        ...this.expand.map((field) => [
           `${field}/Id`,
           `${field}/Title`,
           `${field}/EMail`,

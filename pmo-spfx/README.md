@@ -27,10 +27,10 @@ npm ci
 npm run start
 ```
 
-`config/serve.json` opens the hosted workbench at the configured ProjectManagementTool site. Sign
-in with a test account, accept the local debug manifest, and add **PmoApplication**. The repository
-stores no credentials. For another environment, change only the environment-specific site URL in
-`config/serve.json`; list and library names are centralized in
+`config/serve.json` opens the modern home page at the configured ProjectManagementTool site. Sign
+in with a test account, accept the local debug manifest, edit the page, and add **PmoApplication**.
+The repository stores no credentials. For another environment, change the environment-specific
+site URL in `config/serve.json` and `.vscode/launch.json`; list and library names are centralized in
 `src/webparts/pmoApplication/config/environment.ts` and must match provisioning.
 
 The component gallery is development-only. Append `?pmoGallery=true` while using a debug build.

@@ -62,6 +62,26 @@ describe("Stage 13 production hardening", () => {
     expect(message).not.toContain("Internal server details");
   });
 
+  it("shows sanitized SharePoint validation details and HTTP context", () => {
+    const message = toUserSafeErrorMessage(
+      new SharePointError(
+        "The query to field <b>'Author'</b> is not valid. See https://example.test/private",
+        400,
+        "corr-400",
+        "validation",
+        "-1, Microsoft.SharePoint.SPException",
+        "GET",
+        "https://tenant.sharepoint.com/sites/pmo/_api/web/lists/getbytitle('PMO_Employees')/items?$filter=Email",
+      ),
+    );
+    expect(message).toContain("HTTP 400");
+    expect(message).toContain("query to field 'Author'");
+    expect(message).toContain("SharePoint GET /sites/pmo/_api/web/lists");
+    expect(message).not.toContain("<b>");
+    expect(message).not.toContain("example.test/private");
+    expect(message).not.toContain("$filter");
+  });
+
   it("keeps restricted containers out of support diagnostics", async () => {
     const getJson = jest.fn().mockResolvedValue({
       EffectiveBasePermissions: { High: "0", Low: "7" },

@@ -106,6 +106,8 @@ describe("SharePointClient", () => {
       correlationId: "corr-123",
       classification: "conflict",
       serverCode: "-1",
+      requestMethod: "POST",
+      requestUrl: expect.stringContaining("PMO_Projects") as string,
     });
     expect(transport.post).toHaveBeenCalledTimes(1);
   });
